@@ -8,7 +8,7 @@ WriteMakefile(
     AUTHOR           => q{Peter Mottram (SysPete) <peter@sysnix.com>},
     VERSION_FROM     => 'lib/DBIx/Class/Schema/Versioned/Jiftyesque.pm',
     ABSTRACT_FROM    => 'lib/DBIx/Class/Schema/Versioned/Jiftyesque.pm',
-    LICENSE          => 'Artistic_2_0',
+    LICENSE          => 'perl',
     PL_FILES         => {},
     MIN_PERL_VERSION => 5.006,
     CONFIGURE_REQUIRES => {
@@ -18,8 +18,11 @@ WriteMakefile(
         'Test::More' => 0,
     },
     PREREQ_PM => {
-        #'ABC'              => 1.6,
-        #'Foo::Bar::Module' => 5.0401,
+        Moo              => 1.004006,
+        MooX::HandlesVia => 0.001005,
+        namespace::clean => 0.25,
+        Type::Tiny       => 0.042,
+        version          => 0.9902,
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'DBIx-Class-Schema-Versioned-Jiftyesque-*' },

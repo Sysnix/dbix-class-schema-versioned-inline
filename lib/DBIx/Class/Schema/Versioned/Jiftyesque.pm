@@ -10,44 +10,35 @@ DBIx::Class::Schema::Versioned::Jiftyesque - The great new DBIx::Class::Schema::
 
 =head1 VERSION
 
-Version 0.01
+Version 0.001
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.001';
 
 
 =head1 SYNOPSIS
 
-Quick summary of what the module does.
+  package MyApp::Schema;
 
-Perhaps a little code snippet.
+  use base 'DBIx::Class::Schema::Versioned::Jiftyesque';
 
-    use DBIx::Class::Schema::Versioned::Jiftyesque;
+  package MyApp::Schema::Result::Tree;
 
-    my $foo = DBIx::Class::Schema::Versioned::Jiftyesque->new();
-    ...
+  __PACKAGE__->since( '0.002' );
 
-=head1 EXPORT
+  __PACKAGE__->table("trees");
 
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
-
-=head1 SUBROUTINES/METHODS
-
-=head2 function1
-
-=cut
-
-sub function1 {
-}
-
-=head2 function2
-
-=cut
-
-sub function2 {
-}
+  __PACKAGE__->add_columns(
+      "height",
+      { data_type => "numeric", size => [10, 2] },
+      "age",
+      { data_type => "integer", extra => { since => '0.004' } },
+      "branches",
+      { data_type => "integer", extra => { until => '0.003' } },
+      ...
+  );
+  ...
 
 =head1 AUTHOR
 
