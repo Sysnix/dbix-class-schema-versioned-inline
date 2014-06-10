@@ -15,7 +15,7 @@ use version 0.77;
 
 use namespace::clean;
 
-sub register_column {
+sub __UNUSED_register_column {
     my ( $self, $column, $info, @rest ) = @_;
 
     # this SUCKS and is only good if we are something like:

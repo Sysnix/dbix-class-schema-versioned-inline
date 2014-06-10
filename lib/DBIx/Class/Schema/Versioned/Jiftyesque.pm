@@ -1,8 +1,5 @@
 package DBIx::Class::Schema::Versioned::Jiftyesque;
 
-use strict;
-use warnings;
-
 =head1 NAME
 
 DBIx::Class::Schema::Versioned::Jiftyesque
@@ -40,6 +37,9 @@ our $VERSION = '0.001';
 
 =cut
 
+use strict;
+use warnings;
+
 use base 'DBIx::Class::Schema::Versioned';
 
 use version 0.77;
@@ -65,6 +65,28 @@ sub ordered_schema_versions {
 
     print STDERR "HERE\n";
     return sort { version->parse->parse($a) <=> version->parse($b) } @versions;
+}
+
+=head2 register_class
+
+Overload register_class to weed out classes and columns that are not appropriate for our current schema version.
+
+=cut
+
+sub register_class {
+    my ($self, $source_name, $to_register) = @_;
+
+    my ( $since, $until );
+
+    if ( $to_register->can("since") ) {
+        $since = $to_register->since;
+    }
+
+    if ( $to_register->can("until") ) {
+        $until = $to_register->until;
+    }
+
+    $self->next::method( $source_name, $to_register );
 }
 
 =head1 CAVEATS
