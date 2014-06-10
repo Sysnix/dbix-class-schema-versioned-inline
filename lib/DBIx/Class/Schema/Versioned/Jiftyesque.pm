@@ -1,12 +1,11 @@
 package DBIx::Class::Schema::Versioned::Jiftyesque;
 
-use 5.006;
 use strict;
-use warnings FATAL => 'all';
+use warnings;
 
 =head1 NAME
 
-DBIx::Class::Schema::Versioned::Jiftyesque - The great new DBIx::Class::Schema::Versioned::Jiftyesque!
+DBIx::Class::Schema::Versioned::Jiftyesque
 
 =head1 VERSION
 
@@ -15,7 +14,6 @@ Version 0.001
 =cut
 
 our $VERSION = '0.001';
-
 
 =head1 SYNOPSIS
 
@@ -40,18 +38,52 @@ our $VERSION = '0.001';
   );
   ...
 
+=cut
+
+use base 'DBIx::Class::Schema::Versioned';
+
+use version 0.77;
+
+__PACKAGE__->mk_classdata('since');
+__PACKAGE__->mk_classdata('until');
+
+=head1 METHODS
+
+=head2 ordered_schema_versions
+
+Return an ordered list of schema versions. This is then used to produce a set of steps to upgrade through to achieve the required schema version.
+
+=cut
+
+sub ordered_schema_versions {
+    my $self = shift;
+
+    my @versions;
+
+    # add current schema version
+    push @versions, $self->schema_version;
+
+    print STDERR "HERE\n";
+    return sort { version->parse->parse($a) <=> version->parse($b) } @versions;
+}
+
+=head1 CAVEATS
+
+Please anticipate API changes in this early state of development.
+
 =head1 AUTHOR
 
-Peter Mottram (SysPete), C<< <peter at sysnix.com> >>
+Peter Mottram (SysPete), "peter@sysnix.com"
 
 =head1 BUGS
 
-Please report any bugs or feature requests to C<bug-dbix-class-schema-versioned-jiftyesque at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=DBIx-Class-Schema-Versioned-Jiftyesque>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
+LOTS at of bugs and missing features right now.
 
+Please report any bugs or feature requests via the project's GitHub issue tracker:
 
+L<https://github.com/Sysnix/dbix-class-schema-versioned-jiftyesque/issues>
 
+I will be notified, and then you'll automatically be notified of progress on your bug as I make changes.
 
 =head1 SUPPORT
 
@@ -59,14 +91,13 @@ You can find documentation for this module with the perldoc command.
 
     perldoc DBIx::Class::Schema::Versioned::Jiftyesque
 
-
 You can also look for information at:
 
 =over 4
 
-=item * RT: CPAN's request tracker (report bugs here)
+=item * GitHub repository
 
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=DBIx-Class-Schema-Versioned-Jiftyesque>
+L<https://github.com/Sysnix/dbix-class-schema-versioned-jiftyesque>
 
 =item * AnnoCPAN: Annotated CPAN documentation
 
@@ -82,51 +113,18 @@ L<http://search.cpan.org/dist/DBIx-Class-Schema-Versioned-Jiftyesque/>
 
 =back
 
-
 =head1 ACKNOWLEDGEMENTS
 
+Thanks to Best Practical Solutions for the L<Jifty> framework and L<Jifty::DBI> which inspired this distribution. 
 
 =head1 LICENSE AND COPYRIGHT
 
 Copyright 2014 Peter Mottram (SysPete).
 
-This program is free software; you can redistribute it and/or modify it
-under the terms of the the Artistic License (2.0). You may obtain a
-copy of the full license at:
+This program is free software; you can redistribute it and/or modify it under the terms of either: the GNU General Public License as published by the Free Software Foundation; or the Artistic License.
 
-L<http://www.perlfoundation.org/artistic_license_2_0>
-
-Any use, modification, and distribution of the Standard or Modified
-Versions is governed by this Artistic License. By using, modifying or
-distributing the Package, you accept this license. Do not use, modify,
-or distribute the Package, if you do not accept this license.
-
-If your Modified Version has been derived from a Modified Version made
-by someone other than you, you are nevertheless required to ensure that
-your Modified Version complies with the requirements of this license.
-
-This license does not grant you the right to use any trademark, service
-mark, tradename, or logo of the Copyright Holder.
-
-This license includes the non-exclusive, worldwide, free-of-charge
-patent license to make, have made, use, offer to sell, sell, import and
-otherwise transfer the Package with respect to any patent claims
-licensable by the Copyright Holder that are necessarily infringed by the
-Package. If you institute patent litigation (including a cross-claim or
-counterclaim) against any party alleging that the Package constitutes
-direct or contributory patent infringement, then this Artistic License
-to you shall terminate on the date that such litigation is filed.
-
-Disclaimer of Warranty: THE PACKAGE IS PROVIDED BY THE COPYRIGHT HOLDER
-AND CONTRIBUTORS "AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES.
-THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE, OR NON-INFRINGEMENT ARE DISCLAIMED TO THE EXTENT PERMITTED BY
-YOUR LOCAL LAW. UNLESS REQUIRED BY LAW, NO COPYRIGHT HOLDER OR
-CONTRIBUTOR WILL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
-CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-1; # End of DBIx::Class::Schema::Versioned::Jiftyesque
+1;
