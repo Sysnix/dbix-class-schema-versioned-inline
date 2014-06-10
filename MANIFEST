@@ -10,3 +10,6 @@ t/manifest.t
 t/pod-coverage.t
 t/pod.t
 t/versions.t
+t/lib/MyApp/Schema.pm
+t/lib/MyApp/Schema/Result/Tree.pm
+t/lib/MyApp/Schema/Upgrade.pm

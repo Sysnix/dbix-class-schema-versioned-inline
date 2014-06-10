@@ -1,6 +1,6 @@
 package MyApp::Schema;
 
-our $VERSION = 0.002;
+our $VERSION = '0.000001';
 
 use base qw/DBIx::Class::Schema::Versioned::Jiftyesque/;
 
