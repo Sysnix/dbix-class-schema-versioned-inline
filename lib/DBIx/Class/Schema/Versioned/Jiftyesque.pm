@@ -14,13 +14,17 @@ our $VERSION = '0.001';
 
 =head1 SYNOPSIS
 
+Schema class should inherit from DBIx::Class::Schema::Versioned::Jiftyesque:
+
   package MyApp::Schema;
 
   use base 'DBIx::Class::Schema::Versioned::Jiftyesque';
 
-  package MyApp::Schema::Result::Tree;
+  __PACKAGE__->load_namespaces;
 
-  __PACKAGE__->since( '0.002' );
+Result classes can define class-level since/until with simple sub and column-level by including since/until in column info:
+
+  package MyApp::Schema::Result::Tree;
 
   __PACKAGE__->table("trees");
 
@@ -28,11 +32,13 @@ our $VERSION = '0.001';
       "height",
       { data_type => "numeric", size => [10, 2] },
       "age",
-      { data_type => "integer", extra => { since => '0.004' } },
+      { since => '0.004', data_type => "integer" },
       "branches",
-      { data_type => "integer", extra => { until => '0.003' } },
+      { until => '0.003', data_type => "integer" },
       ...
   );
+
+  sub since { '0.002' };
   ...
 
 =cut
@@ -43,9 +49,8 @@ use warnings;
 use base 'DBIx::Class::Schema::Versioned';
 
 use version 0.77;
+use Data::Dumper;
 
-__PACKAGE__->mk_classdata('since');
-__PACKAGE__->mk_classdata('until');
 
 =head1 METHODS
 
@@ -69,21 +74,38 @@ sub ordered_schema_versions {
 
 =head2 register_class
 
-Overload register_class to weed out classes and columns that are not appropriate for our current schema version.
+Overload register_class to weed out classes and columns that are not appropriate for our current schema version based on since/until values.
 
 =cut
 
 sub register_class {
-    my ($self, $source_name, $to_register) = @_;
+    my ( $self, $source_name, $to_register ) = @_;
 
-    my ( $since, $until );
+    my $version = version->parse($self->schema_version);
 
-    if ( $to_register->can("since") ) {
-        $since = $to_register->since;
-    }
+    # check whether result class is within version range for schema version
 
-    if ( $to_register->can("until") ) {
-        $until = $to_register->until;
+    return
+      if ( $to_register->can("since")
+        && version->parse( $to_register->since ) > $version );
+
+    return
+      if ( $to_register->can("until")
+        && version->parse( $to_register->until ) < $version );
+
+    # for the result classes that are left prune columns based on since/until
+
+    foreach my $column ( $to_register->columns ) {
+
+        my $info = $to_register->column_info($column);
+
+        if ( $info->{since} && version->parse( $info->{since} ) > $version ) {
+            $to_register->remove_column($column);
+        }
+        
+        if ( $info->{until} && version->parse( $info->{until} ) < $version ) {
+            $to_register->remove_column($column);
+        }
     }
 
     $self->next::method( $source_name, $to_register );
