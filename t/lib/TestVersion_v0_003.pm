@@ -50,7 +50,7 @@ use base 'DBIx::Class::Schema::Versioned::Jiftyesque';
 use strict;
 use warnings;
 
-our $VERSION = '0.001';
+our $VERSION = '0.003';
 
 __PACKAGE__->register_class( 'Foo', 'TestVersion::Foo' );
 __PACKAGE__->register_class( 'Bar', 'TestVersion::Bar' );

@@ -1,6 +1,5 @@
 #
-# Foo class valid from any version until 0.002
-# column age in 0.002 only
+# Foo class
 #
 package TestVersion::Foo;
 use base 'DBIx::Class::Core';
@@ -13,18 +12,15 @@ __PACKAGE__->add_columns(
     "foos_id",
     { data_type => 'integer', is_auto_increment => 1 },
     "age",
-    { since => '0.002', data_type => "integer", is_nullable => 1 },
+    { data_type => "integer", is_nullable => 1, extra => { since => '0.002' } },
     "height",
     { data_type => "integer", is_nullable => 1 },
 );
 
-sub until { '0.002' };
+sub until { '0.002' }
 
 #
-# Bar class valid from 0.002 onwards
-# column age until 0.004
-# column height from 0.003 onwards
-# column weight until 0.3
+# Bar class
 #
 package TestVersion::Bar;
 use base 'DBIx::Class::Core';
@@ -37,14 +33,14 @@ __PACKAGE__->add_columns(
     "bars_id",
     { data_type => 'integer', is_auto_increment => 1, },
     "age",
-    { until => '0.004', data_type => "integer", is_nullable => 1 },
+    { data_type => "integer", is_nullable => 1 },
     "height",
-    { since => '0.003', data_type => "integer", is_nullable => 1 },
+    { data_type => "integer", is_nullable => 1, extra => { since => '0.003' } },
     "weight",
-    { until => '0.3', data_type => "integer", is_nullable => 1 },
+    { data_type => "integer", is_nullable => 1, extra => { until => '0.3' } },
 );
 
-sub since { '0.002' };
+sub since { '0.002' }
 
 #
 # Schema
@@ -56,7 +52,7 @@ use warnings;
 
 our $VERSION = '0.002';
 
-__PACKAGE__->register_class('Foo', 'TestVersion::Foo');
-__PACKAGE__->register_class('Bar', 'TestVersion::Bar');
+__PACKAGE__->register_class( 'Foo', 'TestVersion::Foo' );
+__PACKAGE__->register_class( 'Bar', 'TestVersion::Bar' );
 
 1;

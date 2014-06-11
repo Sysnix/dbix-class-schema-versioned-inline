@@ -64,7 +64,15 @@ Return an ordered list of schema versions. This is then used to produce a set of
 sub ordered_schema_versions {
     my $self = shift;
 
+    # add schema cersion
     push @schema_versions, $self->get_db_version, $self->schema_version;
+
+    # add Upgrade versions
+    my $upgradeclass = ref($self) . "::Upgrade";
+    eval {
+        eval "require $upgradeclass" or return;
+        push @schema_versions, $upgradeclass->versions;
+    };
 
     return sort { version->parse->parse($a) <=> version->parse($b) } do {
         my %seen;
@@ -88,18 +96,21 @@ sub register_class {
 
     foreach my $column ( $to_register->columns ) {
 
-        my $info = $to_register->column_info($column);
+        my $extra = $to_register->column_info($column)->{extra};
 
-        if ( $info->{since} ) {
-            push @schema_versions, $info->{since};
-            if ( version->parse( $info->{since} ) > $version ) {
+        my $since = $extra->{since};
+        my $until = $extra->{until};
+
+        if ( $since ) {
+            push @schema_versions, $since;
+            if ( version->parse( $since ) > $version ) {
                 $to_register->remove_column($column);
             }
         }
 
-        if ( $info->{until} ) {
-            push @schema_versions, $info->{until};
-            if ( version->parse( $info->{until} ) < $version ) {
+        if ( $until ) {
+            push @schema_versions, $until;
+            if ( version->parse( $until ) < $version ) {
                 $to_register->remove_column($column);
             }
         }
@@ -115,8 +126,10 @@ sub register_class {
 
     if ( $to_register->can("until") ) {
         my $until = $to_register->until;
+        print STDERR "until $to_register $until $version\n";
         push @schema_versions, $until;
         return if ( version->parse($until) < $version );
+        print STDERR "======\n";
     }
 
     $self->next::method( $source_name, $to_register );
