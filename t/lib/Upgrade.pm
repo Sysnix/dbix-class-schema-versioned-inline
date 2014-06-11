@@ -1,4 +1,4 @@
-package MyApp::Schema::Upgrade;
+package Upgrade;
 
 use Moo;
 with 'DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade';

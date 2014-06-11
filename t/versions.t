@@ -5,31 +5,74 @@ use warnings FATAL => 'all';
 
 use Test::Most;
 
+use Class::Unload;
 use Data::Dumper;
 use DBICx::TestDatabase;
 use File::Spec;
-use Test::Mock::Simple;
+use File::Temp;
 use version 0.77;
 
 use lib File::Spec->catdir( 't', 'lib' );
 
-use MyApp::Schema;
-
 $ENV{DBIC_NO_VERSION_CHECK} = 1;
 
-my ( $mock, $rset, $schema, $source );
+# don't lock anything - this is a tempfile anyway
+$ENV{DBICTEST_LOCK_HOLDER} = -1;
 
-$schema = DBICx::TestDatabase->new('MyApp::Schema');
+my ( $rset, $schema, @versions );
 
-cmp_ok( $schema->get_db_version, 'eq', '0.000001', "Check db version" );
-cmp_ok( $schema->schema_version, 'eq', '0.000001', "Check schema version" );
+VERSION_0_001: {
 
-$mock = Test::Mock::Simple->new(module => 'MyApp::Schema');
-$mock->add(schema_version => sub { return '0.001' } );
+    use_ok 'TestVersion_v0_001';
 
-$schema = DBICx::TestDatabase->new('MyApp::Schema');
+    $schema = TestVersion::Schema->connect("dbi:SQLite:dbname=:memory:");
 
-cmp_ok( $schema->get_db_version, 'eq', '0.001', "Check db version" );
-cmp_ok( $schema->schema_version, 'eq', '0.001', "Check schema version" );
+    @versions = ( '0.001', '0.002', '0.003', '0.004', '0.3' );
+
+    cmp_ok( $schema->schema_version, 'eq', '0.001', "Check schema version" );
+    cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
+
+    lives_ok( sub { $schema->deploy }, "deploy schema" );
+    cmp_ok( $schema->get_db_version, 'eq', '0.001', "Check db version" );
+
+    cmp_deeply( [ $schema->ordered_schema_versions ],
+        \@versions, "Check we found all expected versions" )
+      || (diag "got: "
+        . join( " ", $schema->ordered_schema_versions )
+        . "\nexpect: "
+        . join( " ", @versions ) );
+
+    cmp_deeply( [ $schema->sources ], [qw(Foo)], "class Foo only" );
+
+    Class::Unload->unload('TestVersion::Foo');
+    Class::Unload->unload('TestVersion::Bar');
+}
+
+VERSION_0_002: {
+
+    use_ok 'TestVersion_v0_002';
+
+    $schema = TestVersion::Schema->connect("dbi:SQLite:dbname=:memory:");
+
+    @versions = ( '0.001', '0.002', '0.003', '0.004', '0.3' );
+
+    cmp_ok( $schema->schema_version, 'eq', '0.002', "Check schema version" );
+    cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
+
+    lives_ok( sub { $schema->deploy }, "deploy schema" );
+    cmp_ok( $schema->get_db_version, 'eq', '0.002', "Check db version" );
+
+    cmp_deeply( [ $schema->ordered_schema_versions ],
+        \@versions, "Check we found all expected versions" )
+      || (diag "got: "
+        . join( " ", $schema->ordered_schema_versions )
+        . "\nexpect: "
+        . join( " ", @versions ) );
+
+    cmp_deeply( [ sort $schema->sources ], [qw(Bar Foo)], "Foo and Bar" );
+
+    Class::Unload->unload('TestVersion::Foo');
+    Class::Unload->unload('TestVersion::Bar');
+}
 
 done_testing;

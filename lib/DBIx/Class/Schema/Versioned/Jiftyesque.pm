@@ -43,14 +43,15 @@ Result classes can define class-level since/until with simple sub and column-lev
 
 =cut
 
-use strict;
 use warnings;
+use strict;
 
 use base 'DBIx::Class::Schema::Versioned';
 
-use version 0.77;
 use Data::Dumper;
+use version 0.77;
 
+our @schema_versions;
 
 =head1 METHODS
 
@@ -63,13 +64,12 @@ Return an ordered list of schema versions. This is then used to produce a set of
 sub ordered_schema_versions {
     my $self = shift;
 
-    my @versions;
+    push @schema_versions, $self->get_db_version, $self->schema_version;
 
-    # add current schema version
-    push @versions, $self->schema_version;
-
-    print STDERR "HERE\n";
-    return sort { version->parse->parse($a) <=> version->parse($b) } @versions;
+    return sort { version->parse->parse($a) <=> version->parse($b) } do {
+        my %seen;
+        grep { !$seen{$_}++ } @schema_versions;
+    };
 }
 
 =head2 register_class
@@ -81,31 +81,42 @@ Overload register_class to weed out classes and columns that are not appropriate
 sub register_class {
     my ( $self, $source_name, $to_register ) = @_;
 
-    my $version = version->parse($self->schema_version);
+    my $version = version->parse( $self->schema_version );
 
-    # check whether result class is within version range for schema version
-
-    return
-      if ( $to_register->can("since")
-        && version->parse( $to_register->since ) > $version );
-
-    return
-      if ( $to_register->can("until")
-        && version->parse( $to_register->until ) < $version );
-
-    # for the result classes that are left prune columns based on since/until
+    # check columns before deciding on class-level since/until to make sure
+    # we don't miss any versions
 
     foreach my $column ( $to_register->columns ) {
 
         my $info = $to_register->column_info($column);
 
-        if ( $info->{since} && version->parse( $info->{since} ) > $version ) {
-            $to_register->remove_column($column);
+        if ( $info->{since} ) {
+            push @schema_versions, $info->{since};
+            if ( version->parse( $info->{since} ) > $version ) {
+                $to_register->remove_column($column);
+            }
         }
-        
-        if ( $info->{until} && version->parse( $info->{until} ) < $version ) {
-            $to_register->remove_column($column);
+
+        if ( $info->{until} ) {
+            push @schema_versions, $info->{until};
+            if ( version->parse( $info->{until} ) < $version ) {
+                $to_register->remove_column($column);
+            }
         }
+    }
+
+    # now check class-level since/until
+
+    if ( $to_register->can("since") ) {
+        my $since = $to_register->since;
+        push @schema_versions, $since;
+        return if ( version->parse($since) > $version );
+    }
+
+    if ( $to_register->can("until") ) {
+        my $until = $to_register->until;
+        push @schema_versions, $until;
+        return if ( version->parse($until) < $version );
     }
 
     $self->next::method( $source_name, $to_register );
