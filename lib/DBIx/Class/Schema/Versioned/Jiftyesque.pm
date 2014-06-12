@@ -72,6 +72,28 @@ our $VERSION = '0.001';
    # do some other things like renaming primary key column
  }
 
+=head1 DESCRIPTION
+
+This module extends L<DBIx::Class::Schema::Versioned> using simple 'since' and 'until' markers within result classes to specify the schema version at which classes and columns were introduced or removed. Column since/until definitions are included as part of 'extra' info in add_column(s).
+
+=head2 since
+
+When a class is added to a schema at a specific schema version version then a 'since' method must be added to the class which returns the version at which the class was added. For example:
+
+C<< sub since { '1.002' } >>
+
+It is not necessary to add this method to the initial version of a class since any class without this method is assumed to have existed for ever.
+
+Using 'since' in a column definition denotes when the column was added OR when changes were last made to the column.
+
+=head2 until
+
+When used as a class method this should return the final schema version at which the class is to be used. The underlying database table will be removed when the schema is upgraded to a higher version. Example method definition:
+
+C<< sub until { '1.999' } >>
+
+Using 'until' in a column definition will cause removal of the column from the table when the schema is upgraded past this version.
+
 =cut
 
 use warnings;
