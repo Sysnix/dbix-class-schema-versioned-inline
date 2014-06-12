@@ -14,32 +14,63 @@ our $VERSION = '0.001';
 
 =head1 SYNOPSIS
 
-Schema class should inherit from DBIx::Class::Schema::Versioned::Jiftyesque:
+ package MyApp::Schema;
 
-  package MyApp::Schema;
+ use base 'DBIx::Class::Schema::Versioned::Jiftyesque';
 
-  use base 'DBIx::Class::Schema::Versioned::Jiftyesque';
+ our $VERSION = '0.002';
 
-  __PACKAGE__->load_namespaces;
+ __PACKAGE__->load_namespaces;
 
-Result classes can define class-level since/until with simple sub and column-level by including since/until in column info:
+ ...
 
-  package MyApp::Schema::Result::Tree;
+ package MyApp::Schema::Result::Foo;
 
-  __PACKAGE__->table("trees");
+ use base 'DBIx::Class::Core';
 
-  __PACKAGE__->add_columns(
-      "height",
-      { data_type => "numeric", size => [10, 2] },
-      "age",
-      { since => '0.004', data_type => "integer" },
-      "branches",
-      { until => '0.003', data_type => "integer" },
-      ...
-  );
+ __PACKAGE__->table('foos');
 
-  sub since { '0.002' };
-  ...
+ __PACKAGE__->add_columns(
+   "foos_id",
+   { data_type => 'integer', is_auto_increment => 1 },
+   "age",
+   { data_type => "integer", is_nullable => 1, extra => { since => '0.002' } },
+   "height",
+   { data_type => "integer", is_nullable => 1 },
+ );
+
+ sub until { '0.002' }
+
+ ...
+
+ package MyApp::Schema::Result::Bar;
+
+ use base 'DBIx::Class::Core';
+
+ __PACKAGE__->table('bars');
+
+ __PACKAGE__->add_columns(
+   "bars_id",
+   { data_type => 'integer', is_auto_increment => 1, },
+   "age",
+   { data_type => "integer", is_nullable => 1 },
+   "height",
+   { data_type => "integer", is_nullable => 1, extra => { until => '0.003' } },
+ );
+
+ sub since { '0.002' }
+
+ ...
+
+ package MyApp::Schema::Upgrade;
+
+ use base 'DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade';
+ use DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade qw(since rename);
+
+ since '0.003' => sub {
+   rename class => 'Foo', to => 'Product', table => 'products';
+   # do some other things like renaming primary key column
+ }
 
 =cut
 
