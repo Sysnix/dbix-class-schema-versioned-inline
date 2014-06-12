@@ -79,7 +79,6 @@ use strict;
 
 use base 'DBIx::Class::Schema::Versioned';
 
-use Data::Dumper;
 use version 0.77;
 
 our @schema_versions;
@@ -95,7 +94,7 @@ Return an ordered list of schema versions. This is then used to produce a set of
 sub ordered_schema_versions {
     my $self = shift;
 
-    # add schema cersion
+    # add schema and database versions to list
     push @schema_versions, $self->get_db_version, $self->schema_version;
 
     # add Upgrade versions
@@ -105,7 +104,7 @@ sub ordered_schema_versions {
         push @schema_versions, $upgradeclass->versions;
     };
 
-    return sort { version->parse->parse($a) <=> version->parse($b) } do {
+    return sort { version->parse($a) <=> version->parse($b) } do {
         my %seen;
         grep { !$seen{$_}++ } @schema_versions;
     };
@@ -132,16 +131,25 @@ sub register_class {
         my $since = $extra->{since};
         my $until = $extra->{until};
 
-        if ( $since ) {
-            push @schema_versions, $since;
-            if ( version->parse( $since ) > $version ) {
+        if (   $since
+            && $until
+            && ( version->parse($since) > version->parse($until) ) )
+        {
+            $self->throw_exception(
+                "$to_register column $column has since greater than until");
+        }
+
+        # until is absolute so parse before since
+        if ($until) {
+            push @schema_versions, $until;
+            if ( version->parse($until) < $version ) {
                 $to_register->remove_column($column);
             }
         }
 
-        if ( $until ) {
-            push @schema_versions, $until;
-            if ( version->parse( $until ) < $version ) {
+        if ($since) {
+            push @schema_versions, $since;
+            if ( version->parse($since) > $version ) {
                 $to_register->remove_column($column);
             }
         }
@@ -149,18 +157,30 @@ sub register_class {
 
     # now check class-level since/until
 
-    if ( $to_register->can("since") ) {
-        my $since = $to_register->since;
-        push @schema_versions, $since;
-        return if ( version->parse($since) > $version );
+    my $since = $to_register->can("since") ? $to_register->since : undef;
+
+    my $until = $to_register->can("until") ? $to_register->until : undef;
+
+    push( @schema_versions, $since ) if $since;
+    push( @schema_versions, $until ) if $until;
+
+    if (   $since
+        && $until
+        && ( version->parse($since) > version->parse($until) ) )
+    {
+        $self->throw_exception("$to_register has since greater than until");
     }
 
-    if ( $to_register->can("until") ) {
-        my $until = $to_register->until;
-        print STDERR "until $to_register $until $version\n";
-        push @schema_versions, $until;
-        return if ( version->parse($until) < $version );
-        print STDERR "======\n";
+    # until is absolute so parse before since
+    if ( $until && $version > version->parse($until) ) {
+        $self->unregister_source($source_name)
+          if grep { $_ eq $source_name } $self->sources;
+        return;
+    }
+    if ( $since && $version < version->parse($since) ) {
+        $self->unregister_source($source_name)
+          if grep { $_ eq $source_name } $self->sources;
+        return;
     }
 
     $self->next::method( $source_name, $to_register );
@@ -176,7 +196,9 @@ Peter Mottram (SysPete), "peter@sysnix.com"
 
 =head1 BUGS
 
-LOTS at of bugs and missing features right now.
+LOTS of bugs and missing features right now.
+
+NOTE: upgrades are NOT yet implemented.
 
 Please report any bugs or feature requests via the project's GitHub issue tracker:
 

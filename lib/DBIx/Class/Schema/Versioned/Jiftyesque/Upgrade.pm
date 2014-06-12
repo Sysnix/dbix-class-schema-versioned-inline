@@ -82,8 +82,7 @@ C<since> is meant to be called by subclass. Calling it signifies that SUB should
 sub since {
     my ( $version, $sub ) = @_;
     if ( exists $UPGRADES{$version} ) {
-        $UPGRADES{$version} =
-          sub { $UPGRADES{$version}->(); $sub->(); }
+        $UPGRADES{$version} = sub { $UPGRADES{$version}->(); $sub->(); }
     }
     else {
         $UPGRADES{$version} = $sub;
@@ -98,8 +97,7 @@ Returns an ordered list of the upgrade versions that have been registered.
 
 sub versions {
     my $class = shift;
-    return
-      sort { version->parse->parse($a) <=> version->parse($b) }
+    return sort { version->parse->parse($a) <=> version->parse($b) }
       keys %UPGRADES;
 }
 

@@ -73,7 +73,9 @@ AUTHOR
     Peter Mottram (SysPete), "peter@sysnix.com"
 
 BUGS
-    LOTS at of bugs and missing features right now.
+    LOTS of bugs and missing features right now.
+
+    NOTE: upgrades are NOT yet implemented.
 
     Please report any bugs or feature requests via the project's GitHub
     issue tracker:
