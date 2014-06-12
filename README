@@ -2,38 +2,95 @@ NAME
     DBIx::Class::Schema::Versioned::Jiftyesque
 
 VERSION
-    0.001
+    Version 0.001
 
 DESCRIPTION
+
     Simple since/until schema versioning for DBIx::Class in the style of
     Jifty::DBI
 
-SUPPORT AND DOCUMENTATION
+SYNOPSIS
+     package MyApp::Schema;
 
-After installing, you can find documentation for this module with the
-perldoc command.
+     use base 'DBIx::Class::Schema::Versioned::Jiftyesque';
 
-    perldoc DBIx::Class::Schema::Versioned::Jiftyesque
+     our $VERSION = '0.002';
 
-You can also look for information at:
+     __PACKAGE__->load_namespaces;
 
-    GitHub (report bugs here)
-        https://github.com/SysPete/dbix-class-schema-versioned-jiftyesque
+     ...
 
-    AnnoCPAN, Annotated CPAN documentation
-        http://annocpan.org/dist/DBIx-Class-Schema-Versioned-Jiftyesque
+     package MyApp::Schema::Result::Foo;
 
-    CPAN Ratings
-        http://cpanratings.perl.org/d/DBIx-Class-Schema-Versioned-Jiftyesque
+     use base 'DBIx::Class::Core';
 
-    Search CPAN
-        http://search.cpan.org/dist/DBIx-Class-Schema-Versioned-Jiftyesque/
+     __PACKAGE__->table('foos');
 
-AUTHORS
-    Peter Mottram (SysPete), peter at sysnix dot com
+     __PACKAGE__->add_columns(
+       "foos_id",
+       { data_type => 'integer', is_auto_increment => 1 },
+       "age",
+       { data_type => "integer", is_nullable => 1, extra => { since => '0.002' } },
+       "height",
+       { data_type => "integer", is_nullable => 1 },
+     );
+
+     sub until { '0.002' }
+
+     ...
+
+     package MyApp::Schema::Result::Bar;
+
+     use base 'DBIx::Class::Core';
+
+     __PACKAGE__->table('bars');
+
+     __PACKAGE__->add_columns(
+       "bars_id",
+       { data_type => 'integer', is_auto_increment => 1, },
+       "age",
+       { data_type => "integer", is_nullable => 1 },
+       "height",
+       { data_type => "integer", is_nullable => 1, extra => { until => '0.003' } },
+     );
+
+     sub since { '0.002' }
+
+     ...
+
+     package MyApp::Schema::Upgrade;
+
+     use base 'DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade';
+     use DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade qw(since rename);
+
+     since '0.003' => sub {
+       rename class => 'Foo', to => 'Product', table => 'products';
+       # do some other things like renaming primary key column
+     }
+
+CAVEATS
+    Please anticipate API changes in this early state of development.
+
+AUTHOR
+    Peter Mottram (SysPete), "peter@sysnix.com"
+
+BUGS
+    LOTS at of bugs and missing features right now.
+
+    Please report any bugs or feature requests via the project's GitHub
+    issue tracker:
+
+    <https://github.com/Sysnix/dbix-class-schema-versioned-jiftyesque/issues
+    >
+
+    I will be notified, and then you'll automatically be notified of
+    progress on your bug as I make changes.
+
+ACKNOWLEDGEMENTS
+    Thanks to Best Practical Solutions for the Jifty framework and
+    Jifty::DBI which inspired this distribution.
 
 LICENSE AND COPYRIGHT
-
     Copyright 2014 Peter Mottram (SysPete).
 
     This program is free software; you can redistribute it and/or modify it
