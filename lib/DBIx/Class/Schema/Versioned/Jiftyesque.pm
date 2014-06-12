@@ -101,15 +101,39 @@ use strict;
 
 use base 'DBIx::Class::Schema::Versioned';
 
+use Carp;
 use version 0.77;
 
 our @schema_versions;
 
 =head1 METHODS
 
+Many methods are inherited or overloaded from L<DBIx::Class::Schema::Versioned>.
+
+=head2 connection
+
+Inherited method. This checks the DBIC schema version against the DB version and warns if they are not the same or if the DB is unversioned.
+
+To avoid the checks on connect, set the environment var DBIC_NO_VERSION_CHECK or alternatively you can set the ignore_version attr in the forth argument like so:
+
+  my $schema = MyApp::Schema->connect(
+    $dsn,
+    $user,
+    $password,
+    { ignore_version => 1 },
+  );
+
+=head2 deploy
+
+Inherited method. Same as L<DBIx::Class::Schema/deploy> but also calls C<install>.
+
+=head2 install
+
+Inherited method. Call this to initialise a previously unversioned database.
+
 =head2 ordered_schema_versions
 
-Return an ordered list of schema versions. This is then used to produce a set of steps to upgrade through to achieve the required schema version.
+Overloaded method. Returns an ordered list of schema versions. This is then used to produce a set of steps to upgrade through to achieve the required schema version.
 
 =cut
 
@@ -134,7 +158,7 @@ sub ordered_schema_versions {
 
 =head2 register_class
 
-Overload register_class to weed out classes and columns that are not appropriate for our current schema version based on since/until values.
+Overloaded method from L<DBIx::Class::Schema|DBIx::Class::Schema/register_class>. Used to weed out classes and columns that are not appropriate for our current schema version based on since/until values before calling parent method. Collects all of the available versions at the same time.
 
 =cut
 
@@ -208,6 +232,39 @@ sub register_class {
     $self->next::method( $source_name, $to_register );
 }
 
+=head2 upgrade
+
+Inherited method. Call this to attempt to upgrade your database from the version it is at to the version this DBIC schema is at. If they are the same it does nothing.
+
+=head2 upgrade_single_step
+
+=over 4
+ 
+=item Arguments: db_version - the version currently within the db
+ 
+=item Arguments: target_version - the version to upgrade to
+
+=back
+
+Overloaded method. Call this to attempt to upgrade your database from the I<db_version> to the I<target_version>. If they are the same it does nothing.
+
+All upgrade operations within this step are performed inside a single transaction so either all succeed or all fail. If successful the dbix_class_schema_versions table is updated with the I<target_version>.
+
+This method may be called repeatedly by the L</upgrade> method to upgrade through a series of updates.
+
+=cut
+
+sub upgrade_single_step {
+    my ( $self, $db_version, $target_version ) = @_;
+
+    # db and schema at same version. do nothing
+    if ( $db_version eq $target_version ) {
+        carp 'Upgrade not necessary';
+        return;
+    }
+    carp "attempting upgrade from $db_version to $target_version";
+}
+
 =head1 CAVEATS
 
 Please anticipate API changes in this early state of development.
@@ -258,7 +315,7 @@ L<http://search.cpan.org/dist/DBIx-Class-Schema-Versioned-Jiftyesque/>
 
 =head1 ACKNOWLEDGEMENTS
 
-Thanks to Best Practical Solutions for the L<Jifty> framework and L<Jifty::DBI> which inspired this distribution. 
+Thanks to Best Practical Solutions for the L<Jifty> framework and L<Jifty::DBI> which inspired this distribution. Thanks also to Matt S. Trout and all of the L<DBIx::Class> developers for an excellent distribution.
 
 =head1 LICENSE AND COPYRIGHT
 

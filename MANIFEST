@@ -10,6 +10,7 @@ t/deploy.t
 t/manifest.t
 t/pod-coverage.t
 t/pod.t
+t/upgrade.t
 t/lib/TestVersion/Schema/Upgrade.pm
 t/lib/TestVersion_v0_001.pm
 t/lib/TestVersion_v0_002.pm
