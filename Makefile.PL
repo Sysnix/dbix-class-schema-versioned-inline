@@ -15,7 +15,7 @@ WriteMakefile(
         'ExtUtils::MakeMaker' => 0,
     },
     BUILD_REQUIRES => {
-        'Class::Unload'       => 0.09,
+        'Class::Unload'       => 0.08,
         'DBICx::TestDatabase' => 0.05,
         'File::Spec'          => 0,
         'File::Temp'          => 0,

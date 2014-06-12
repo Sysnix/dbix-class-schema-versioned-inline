@@ -2,7 +2,7 @@ package DBIx::Class::Schema::Versioned::Jiftyesque;
 
 =head1 NAME
 
-DBIx::Class::Schema::Versioned::Jiftyesque
+DBIx::Class::Schema::Versioned::Jiftyesque - since/until schema versioning for DBIx::Class in the style of L<Jifty>
 
 =head1 VERSION
 

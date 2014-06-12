@@ -10,6 +10,12 @@ t/manifest.t
 t/pod-coverage.t
 t/pod.t
 t/versions.t
-t/lib/MyApp/Schema.pm
-t/lib/MyApp/Schema/Result/Tree.pm
-t/lib/MyApp/Schema/Upgrade.pm
+t/lib/TestVersion/Schema/Upgrade.pm
+t/lib/TestVersion_v0_001.pm
+t/lib/TestVersion_v0_002.pm
+t/lib/TestVersion_v0_003.pm
+t/lib/TestVersion_v0_004.pm
+t/lib/TestVersion_v0_005.pm
+t/lib/TestVersion_v0_006.pm
+t/lib/TestVersion_v0_3.pm
+t/lib/TestVersion_v0_4.pm

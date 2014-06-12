@@ -5,9 +5,7 @@ VERSION
     Version 0.001
 
 DESCRIPTION
-
-    Simple since/until schema versioning for DBIx::Class in the style of
-    Jifty::DBI
+    Simple since/until schema versioning for DBIx::Class
 
 SYNOPSIS
      package MyApp::Schema;
@@ -80,8 +78,7 @@ BUGS
     Please report any bugs or feature requests via the project's GitHub
     issue tracker:
 
-    <https://github.com/Sysnix/dbix-class-schema-versioned-jiftyesque/issues
-    >
+    https://github.com/Sysnix/dbix-class-schema-versioned-jiftyesque/issues
 
     I will be notified, and then you'll automatically be notified of
     progress on your bug as I make changes.
