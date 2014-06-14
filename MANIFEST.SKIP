@@ -2,6 +2,7 @@
 ^.*\.tar.gz$
 ^.*.bak
 ^.*.old
+^.*.swp
 .gitignore
 lib/Interchange6/Schema/Result/t
 sql
