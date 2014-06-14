@@ -1,5 +1,3 @@
-package DBIx::Class::Schema::Versioned::Jiftyesque;
-
 =head1 NAME
 
 DBIx::Class::Schema::Versioned::Jiftyesque - since/until schema versioning for DBIx::Class in the style of L<Jifty>
@@ -8,9 +6,8 @@ DBIx::Class::Schema::Versioned::Jiftyesque - since/until schema versioning for D
 
 Version 0.001
 
-=cut
 
-our $VERSION = '0.001';
+=cut
 
 =head1 SYNOPSIS
 
@@ -116,18 +113,8 @@ C<< sub until { '1.999' } >>
 
 Using 'until' in a column definition will cause removal of the column from the table when the schema is upgraded past this version.
 
+
 =cut
-
-use warnings;
-use strict;
-
-use base 'DBIx::Class::Schema::Versioned';
-
-use Carp;
-use Data::Dumper::Concise;
-use version 0.77;
-
-our @schema_versions;
 
 =head1 METHODS
 
@@ -146,39 +133,8 @@ To avoid the checks on connect, set the environment var DBIC_NO_VERSION_CHECK or
     { ignore_version => 1 },
   );
 
+
 =cut
-
-sub connection {
-  my $self = shift;
-  $self->next::method(@_);
-  $self->_on_connect();
-  return $self;
-}
-
-sub _on_connect {
-    my $self = shift;
-
-    my $conn_info = $self->storage->connect_info;
-    $self->{vschema} = DBIx::Class::Version->connect(@$conn_info);
-    my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
-
-    my $vtable = $self->{vschema}->resultset('Table');
-
-    my $version = $self->get_db_version();
-
-    unless ( $version ) {
-        # TODO: checks for unversioned
-        # - do we throw exception?
-        # - do we install automatically?
-        # - can we be passed some method or connect arg?
-        # for now just set $pversion to schema_version
-        $version = $self->schema_version;
-    }
-
-    $self->_cleanup_versions( $version );
-
-    return 1;
-}
 
 =head2 deploy
 
@@ -192,127 +148,15 @@ Inherited method. Call this to initialise a previously unversioned database.
 
 Overloaded method. Returns an ordered list of schema versions. This is then used to produce a set of steps to upgrade through to achieve the required schema version.
 
+
 =cut
-
-sub ordered_schema_versions {
-    my $self = shift;
-
-    # add schema and database versions to list
-    push @schema_versions, $self->get_db_version, $self->schema_version;
-
-    # add Upgrade versions
-    my $upgradeclass = ref($self) . "::Upgrade";
-    eval {
-        eval "require $upgradeclass" or return;
-        push @schema_versions, $upgradeclass->versions;
-    };
-
-    return sort { version->parse($a) <=> version->parse($b) } do {
-        my %seen;
-        grep { !$seen{$_}++ } @schema_versions;
-    };
-}
 
 =head2 _cleanup_versions
 
 Used to weed out classes and columns that are not appropriate for our current database version based on since/until values. Collects available versions at the same time.
 
+
 =cut
-
-sub _cleanup_versions {
-    my ( $self, $_version ) = @_;
-
-    my $pversion = version->parse( $_version );
-
-    #warn "DB VERSION " . $self->get_db_version;
-
-    foreach my $source_name ( $self->sources ) {
-
-        #warn "SOURCE NAME $source_name";
-
-        my $source = $self->source($source_name);
-
-        # check columns before deciding on class-level since/until to make sure
-        # we don't miss any versions
-
-        foreach my $column ( $source->columns ) {
-
-            my $extra = $source->column_info($column)->{extra};
-
-            my $since = $extra->{since};
-            my $until = $extra->{until};
-
-            my $name = "$source_name column $column";
-            my $sub  = sub {
-                my $source = shift;
-                $source->remove_column($column);
-            };
-            $self->_since_until( $pversion, $extra->{since}, $extra->{until}, $name, $sub, $source );
-        }
-
-        # now check relations
-
-        foreach my $relation_name ( $source->relationships ) {
-
-            my $attrs = $source->relationship_info( $relation_name )->{attrs};
-
-            next unless defined $attrs;
-
-            my $extra = $attrs->{extra};
-
-            next unless defined $extra;
-
-            my $since = $extra->{since};
-            my $until = $extra->{until};
-
-            my $name = "$source_name relationship $relation_name";
-            my $sub  = sub {
-                my $source = shift;
-                my %rels = %{ $source->_relationships };
-                delete $rels{$relation_name};
-                $source->_relationships(\%rels);
-            };
-            $self->_since_until( $pversion, $extra->{since}, $extra->{until}, $name, $sub, $source );
-        }
-
-        # now check class-level since/until
- 
-        my ( $since, $until );
-
-        my $extra = $source->resultset_attributes->{extra};
-
-        if ( defined $extra ) {
-            $since = $extra->{since} if defined $extra->{since};
-            $until = $extra->{until} if defined $extra->{until};
-        }
-
-        my $name = $source_name;
-        my $sub  = sub {
-            my $class = shift;
-            $class->unregister_source($source_name);
-        };
-        $self->_since_until( $pversion, $extra->{since}, $extra->{until}, $name, $sub, $self );
-    }
-}
-
-sub _since_until {
-    my ( $self, $pversion, $since, $until, $name, $sub, $thing ) = @_;
-
-    if ( $since && $until && ( version->parse($since) > version->parse($until) ) ) {
-        $self->throw_exception("$name has since greater than until");
-    }
-
-    push( @schema_versions, $since ) if $since;
-    push( @schema_versions, $until ) if $until;
-
-    # until is absolute so parse before since
-    if ( $until && $pversion > version->parse($until) ) {
-        $sub->($thing);
-    }
-    if ( $since && $pversion < version->parse($since) ) {
-        $sub->($thing);
-    }
-}
 
 =head2 upgrade
 
@@ -334,18 +178,8 @@ All upgrade operations within this step are performed inside a single transactio
 
 This method may be called repeatedly by the L</upgrade> method to upgrade through a series of updates.
 
+
 =cut
-
-sub upgrade_single_step {
-    my ( $self, $db_version, $target_version ) = @_;
-
-    # db and schema at same version. do nothing
-    if ( $db_version eq $target_version ) {
-        carp 'Upgrade not necessary';
-        return;
-    }
-    carp "attempting upgrade from $db_version to $target_version";
-}
 
 =head1 CAVEATS
 
@@ -407,6 +241,6 @@ This program is free software; you can redistribute it and/or modify it under th
 
 See http://dev.perl.org/licenses/ for more information.
 
+
 =cut
 
-1;
