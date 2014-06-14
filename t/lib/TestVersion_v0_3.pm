@@ -15,9 +15,20 @@ __PACKAGE__->add_columns(
     { data_type => "integer", is_nullable => 1, extra => { since => '0.002' } },
     "height",
     { data_type => "integer", is_nullable => 1 },
+    "bars_id",
+    { data_type => 'integer', is_foreign_key => 1, is_nullable => 0, extra => { since => '0.002' } },
 );
 
-sub until { '0.002' }
+__PACKAGE__->set_primary_key('foos_id');
+
+__PACKAGE__->has_one(
+    'Bar',
+    'TestVersion::Bar',
+    'bars_id',
+    { extra => { since => '0.002' }},
+);
+
+__PACKAGE__->resultset_attributes({ extra => { until => '0.002' }});
 
 #
 # Bar class
@@ -40,7 +51,16 @@ __PACKAGE__->add_columns(
     { data_type => "integer", is_nullable => 1, extra => { until => '0.3' } },
 );
 
-sub since { '0.002' }
+__PACKAGE__->set_primary_key('bars_id');
+
+__PACKAGE__->belongs_to(
+    'Foo',
+    'TestVersion::Foo',
+    'bars_id',
+    { extra => { until => '0.002' }},
+);
+
+__PACKAGE__->resultset_attributes({ extra => { since => '0.3' }});
 
 #
 # Schema

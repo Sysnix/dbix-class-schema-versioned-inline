@@ -42,10 +42,13 @@ VERSION_0_001: {
     # columns
     my $foo = $schema->source('Foo');
     cmp_deeply( [ sort $foo->columns ], [qw(foos_id height)],
-        "Foo columns OK" );
+        "Foo columns OK" )
+      || diag "got: "
+        . join( " ", $foo->columns );
 
     Class::Unload->unload('TestVersion::Foo');
     Class::Unload->unload('TestVersion::Bar');
+    Class::Unload->unload('TestVersion::Schema');
 }
 
 VERSION_0_002: {
@@ -76,7 +79,7 @@ VERSION_0_002: {
     my $foo = $schema->source('Foo');
     cmp_deeply(
         [ sort $foo->columns ],
-        [qw(age foos_id height)],
+        [qw(age bars_id foos_id height)],
         "Foo columns OK"
     );
     my $bar = $schema->source('Bar');
@@ -88,6 +91,7 @@ VERSION_0_002: {
 
     Class::Unload->unload('TestVersion::Foo');
     Class::Unload->unload('TestVersion::Bar');
+    Class::Unload->unload('TestVersion::Schema');
 }
 
 VERSION_0_003: {
@@ -125,6 +129,7 @@ VERSION_0_003: {
 
     Class::Unload->unload('TestVersion::Foo');
     Class::Unload->unload('TestVersion::Bar');
+    Class::Unload->unload('TestVersion::Schema');
 }
 
 VERSION_0_3: {
@@ -161,6 +166,7 @@ VERSION_0_3: {
 
     Class::Unload->unload('TestVersion::Foo');
     Class::Unload->unload('TestVersion::Bar');
+    Class::Unload->unload('TestVersion::Schema');
 }
 
 VERSION_0_4: {
@@ -197,6 +203,7 @@ VERSION_0_4: {
 
     Class::Unload->unload('TestVersion::Foo');
     Class::Unload->unload('TestVersion::Bar');
+    Class::Unload->unload('TestVersion::Schema');
 }
 
 done_testing;

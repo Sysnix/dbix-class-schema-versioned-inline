@@ -102,6 +102,7 @@ use strict;
 use base 'DBIx::Class::Schema::Versioned';
 
 use Carp;
+use Data::Dumper::Concise;
 use version 0.77;
 
 our @schema_versions;
@@ -112,7 +113,7 @@ Many methods are inherited or overloaded from L<DBIx::Class::Schema::Versioned>.
 
 =head2 connection
 
-Inherited method. This checks the DBIC schema version against the DB version and warns if they are not the same or if the DB is unversioned.
+Overloaded method. This checks the DBIC schema version against the DB version and warns if they are not the same or if the DB is unversioned.
 
 To avoid the checks on connect, set the environment var DBIC_NO_VERSION_CHECK or alternatively you can set the ignore_version attr in the forth argument like so:
 
@@ -122,6 +123,40 @@ To avoid the checks on connect, set the environment var DBIC_NO_VERSION_CHECK or
     $password,
     { ignore_version => 1 },
   );
+
+=cut
+
+sub connection {
+  my $self = shift;
+  $self->next::method(@_);
+  $self->_on_connect();
+  return $self;
+}
+
+sub _on_connect {
+    my $self = shift;
+
+    my $conn_info = $self->storage->connect_info;
+    $self->{vschema} = DBIx::Class::Version->connect(@$conn_info);
+    my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
+
+    my $vtable = $self->{vschema}->resultset('Table');
+
+    my $version = $self->get_db_version();
+
+    unless ( $version ) {
+        # TODO: checks for unversioned
+        # - do we throw exception?
+        # - do we install automatically?
+        # - can we be passed some method or connect arg?
+        # for now just set $pversion to schema_version
+        $version = $self->schema_version;
+    }
+
+    $self->_cleanup_versions( $version );
+
+    return 1;
+}
 
 =head2 deploy
 
@@ -156,80 +191,105 @@ sub ordered_schema_versions {
     };
 }
 
-=head2 register_class
+=head2 _cleanup_versions
 
-Overloaded method from L<DBIx::Class::Schema|DBIx::Class::Schema/register_class>. Used to weed out classes and columns that are not appropriate for our current schema version based on since/until values before calling parent method. Collects all of the available versions at the same time.
+Used to weed out classes and columns that are not appropriate for our current database version based on since/until values. Collects available versions at the same time.
 
 =cut
 
-sub register_class {
-    my ( $self, $source_name, $to_register ) = @_;
+sub _cleanup_versions {
+    my ( $self, $_version ) = @_;
 
-    my $version = version->parse( $self->schema_version );
+    my $pversion = version->parse( $_version );
 
-    # check columns before deciding on class-level since/until to make sure
-    # we don't miss any versions
+    #warn "DB VERSION " . $self->get_db_version;
 
-    foreach my $column ( $to_register->columns ) {
+    foreach my $source_name ( $self->sources ) {
 
-        my $extra = $to_register->column_info($column)->{extra};
+        #warn "SOURCE NAME $source_name";
 
-        my $since = $extra->{since};
-        my $until = $extra->{until};
+        my $source = $self->source($source_name);
 
-        if (   $since
-            && $until
-            && ( version->parse($since) > version->parse($until) ) )
-        {
-            $self->throw_exception(
-                "$to_register column $column has since greater than until");
+        # check columns before deciding on class-level since/until to make sure
+        # we don't miss any versions
+
+        foreach my $column ( $source->columns ) {
+
+            my $extra = $source->column_info($column)->{extra};
+
+            my $since = $extra->{since};
+            my $until = $extra->{until};
+
+            my $name = "$source_name column $column";
+            my $sub  = sub {
+                my $source = shift;
+                $source->remove_column($column);
+            };
+            $self->_since_until( $pversion, $extra->{since}, $extra->{until}, $name, $sub, $source );
         }
 
-        # until is absolute so parse before since
-        if ($until) {
-            push @schema_versions, $until;
-            if ( version->parse($until) < $version ) {
-                $to_register->remove_column($column);
-            }
+        # now check relations
+
+        foreach my $relation_name ( $source->relationships ) {
+
+            my $attrs = $source->relationship_info( $relation_name )->{attrs};
+
+            next unless defined $attrs;
+
+            my $extra = $attrs->{extra};
+
+            next unless defined $extra;
+
+            my $since = $extra->{since};
+            my $until = $extra->{until};
+
+            my $name = "$source_name relationship $relation_name";
+            my $sub  = sub {
+                my $source = shift;
+                my %rels = %{ $source->_relationships };
+                delete $rels{$relation_name};
+                $source->_relationships(\%rels);
+            };
+            $self->_since_until( $pversion, $extra->{since}, $extra->{until}, $name, $sub, $source );
         }
 
-        if ($since) {
-            push @schema_versions, $since;
-            if ( version->parse($since) > $version ) {
-                $to_register->remove_column($column);
-            }
+        # now check class-level since/until
+ 
+        my ( $since, $until );
+
+        my $extra = $source->resultset_attributes->{extra};
+
+        if ( defined $extra ) {
+            $since = $extra->{since} if defined $extra->{since};
+            $until = $extra->{until} if defined $extra->{until};
         }
+
+        my $name = $source_name;
+        my $sub  = sub {
+            my $class = shift;
+            $class->unregister_source($source_name);
+        };
+        $self->_since_until( $pversion, $extra->{since}, $extra->{until}, $name, $sub, $self );
     }
+}
 
-    # now check class-level since/until
+sub _since_until {
+    my ( $self, $pversion, $since, $until, $name, $sub, $thing ) = @_;
 
-    my $since = $to_register->can("since") ? $to_register->since : undef;
-
-    my $until = $to_register->can("until") ? $to_register->until : undef;
+    if ( $since && $until && ( version->parse($since) > version->parse($until) ) ) {
+        $self->throw_exception("$name has since greater than until");
+    }
 
     push( @schema_versions, $since ) if $since;
     push( @schema_versions, $until ) if $until;
 
-    if (   $since
-        && $until
-        && ( version->parse($since) > version->parse($until) ) )
-    {
-        $self->throw_exception("$to_register has since greater than until");
-    }
-
     # until is absolute so parse before since
-    if ( $until && $version > version->parse($until) ) {
-        $self->unregister_source($source_name)
-          if grep { $_ eq $source_name } $self->sources;
-        return;
+    if ( $until && $pversion > version->parse($until) ) {
+        $sub->($thing);
     }
-    if ( $since && $version < version->parse($since) ) {
-        $self->unregister_source($source_name)
-          if grep { $_ eq $source_name } $self->sources;
-        return;
+    if ( $since && $pversion < version->parse($since) ) {
+        $sub->($thing);
     }
-
-    $self->next::method( $source_name, $to_register );
 }
 
 =head2 upgrade
