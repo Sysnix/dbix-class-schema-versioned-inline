@@ -79,7 +79,7 @@ VERSION_0_002: {
     my $foo = $schema->source('Foo');
     cmp_deeply(
         [ sort $foo->columns ],
-        [qw(age bars_id foos_id height)],
+        [qw(age bars_id foos_id width)],
         "Foo columns OK"
     );
     my $bar = $schema->source('Bar');
@@ -117,9 +117,15 @@ VERSION_0_003: {
 
     # tables
 
-    cmp_deeply( [ sort $schema->sources ], [qw(Bar)], "Bar only" );
+    cmp_deeply( [ sort $schema->sources ], [qw(Bar Tree)], "Tree and Bar" );
 
     # columns
+    my $tree = $schema->source('Tree');
+    cmp_deeply(
+        [ sort $tree->columns ],
+        [qw(age bars_id trees_id width)],
+        "Tree columns OK"
+    );
     my $bar = $schema->source('Bar');
     cmp_deeply(
         [ sort $bar->columns ],
@@ -127,7 +133,7 @@ VERSION_0_003: {
         "Bar columns OK"
     );
 
-    Class::Unload->unload('TestVersion::Foo');
+    Class::Unload->unload('TestVersion::Tree');
     Class::Unload->unload('TestVersion::Bar');
     Class::Unload->unload('TestVersion::Schema');
 }
@@ -154,9 +160,15 @@ VERSION_0_3: {
         . join( " ", @versions ) );
 
     # tables
-    cmp_deeply( [ sort $schema->sources ], [qw(Bar)], "Bar only" );
+    cmp_deeply( [ sort $schema->sources ], [qw(Bar Tree)], "Tree and Bar" );
 
     # columns
+    my $tree = $schema->source('Tree');
+    cmp_deeply(
+        [ sort $tree->columns ],
+        [qw(age bars_id trees_id width)],
+        "Tree columns OK"
+    );
     my $bar = $schema->source('Bar');
     cmp_deeply(
         [ sort $bar->columns ],
@@ -164,7 +176,7 @@ VERSION_0_3: {
         "Bar columns OK"
     );
 
-    Class::Unload->unload('TestVersion::Foo');
+    Class::Unload->unload('TestVersion::Tree');
     Class::Unload->unload('TestVersion::Bar');
     Class::Unload->unload('TestVersion::Schema');
 }
@@ -191,9 +203,15 @@ VERSION_0_4: {
         . join( " ", @versions ) );
 
     # tables
-    cmp_deeply( [ sort $schema->sources ], [qw(Bar)], "Bar only" );
+    cmp_deeply( [ sort $schema->sources ], [qw(Bar Tree)], "Tree and Bar" );
 
     # columns
+    my $tree = $schema->source('Tree');
+    cmp_deeply(
+        [ sort $tree->columns ],
+        [qw(age bars_id trees_id width)],
+        "Tree columns OK"
+    );
     my $bar = $schema->source('Bar');
     cmp_deeply(
         [ sort $bar->columns ],
@@ -201,7 +219,7 @@ VERSION_0_4: {
         "Bar columns OK"
     );
 
-    Class::Unload->unload('TestVersion::Foo');
+    Class::Unload->unload('TestVersion::Tree');
     Class::Unload->unload('TestVersion::Bar');
     Class::Unload->unload('TestVersion::Schema');
 }

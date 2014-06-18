@@ -4,6 +4,10 @@ use DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade qw(since rename);
 use strict;
 use warnings;
 
+since '0.002' => sub {
+    print "foo\n";
+};
+
 since '0.004' => sub {
 };
 

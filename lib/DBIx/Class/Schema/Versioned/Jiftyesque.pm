@@ -82,21 +82,9 @@ our $VERSION = '0.001';
 
  __PACKAGE__->resultset_attributes({ extra => { since => '0.002' }});
 
- ...
-
- package MyApp::Schema::Upgrade;
-
- use base 'DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade';
- use DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade qw(since rename);
-
- since '0.003' => sub {
-   rename class => 'Foo', to => 'Product', table => 'products';
-   # do some other things like renaming primary key column
- }
-
 =head1 DESCRIPTION
 
-This module extends L<DBIx::Class::Schema::Versioned> using simple 'since' and 'until' markers within result classes to specify the schema version at which classes and columns were introduced or removed. Column since/until definitions are included as part of 'extra' info in add_column(s). 
+This module extends L<DBIx::Class::Schema::Versioned> using simple 'since' and 'until' markers within result classes to specify the schema version at which classes and columns were introduced or removed. Column since/until definitions are included as part of 'extra' info in add_column(s).
 
 =head2 since
 
@@ -106,7 +94,7 @@ When a class is added to a schema at a specific schema version version then a 's
 
 It is not necessary to add this to the initial version of a class since any class without this atribute is assumed to have existed for ever.
 
-Using 'since' in a column or relationship definition denotes when the column/relation was added OR when changes were last made to it.
+Using 'since' in a column or relationship definition denotes the version at which the column/relation was added.
 
 =head2 until
 
@@ -115,6 +103,33 @@ When used as a class attribute this should be the final schema version at which 
  __PACKAGE__->resultset_attributes({ extra => { since => '0.3' }});
 
 Using 'until' in a column or relationship definition will cause removal of the column/relation from the table when the schema is upgraded past this version.
+
+=head2 renamed_from
+
+For renaming a class:
+
+ package MyApp::Schema::Result::Foo;
+
+ __PACKAGE__->table('foos');
+ __PACKAGE__->resultset_attributes({ extra => { until => '0.4 }});
+
+ package MyApp::Schema::Result::Fooey;
+
+ __PACKAGE__->table('fooeys');
+ __PACKAGE__->resultset_attributes({
+     extra => { since => '0.5, renamed_from => 'Foo' }
+ });
+
+Or for renaming a column:
+
+ __PACKAGE__->add_columns(
+     "height",
+     { data_type => "integer", extra => { until => '0.001' } },
+     "width",
+     { data_type => "integer", extra => {
+         since => '0.002', renamed_from => 'height' }
+     },
+ )
 
 =cut
 
@@ -235,83 +250,84 @@ sub upgrade_single_step {
 
     my $sqlt_type = $self->storage->sqlt_type;
 
+    # add Upgrade versions
+    my $upgradeclass = ref($self) . "::Upgrade";
+    eval {
+        eval "require $upgradeclass" or return;
+        my @sql = $upgradeclass->upgrade_to($target_version);
+    warn Dumper(@sql);
+    };
+
     # translate current schema
 
     my $curr_tr = SQL::Translator->new(
+        no_comments => 1,
         parser   => 'SQL::Translator::Parser::DBIx::Class',
+        #parser   => 'SQL::Translator::Parser::DBIx::Class::Jiftyesque',
         parser_args => {
             dbic_schema => $self,
         },
         producer => $sqlt_type,
+        show_warnings => 1,
     ) or $self->throw_exception(SQL::Translator->error);
     $curr_tr->translate;
 
-    # since schema contains new things to be added
+    # translate target schema
 
-    my $since_schema =
-      ref($self)
-      ->connect( "DBI:Mock:", undef, undef,
-        { _version => $target_version, _type => 'since' } );
+    # our target future-versioned connect causes warning messages we don't want
+    my $old_DBIC_NO_VERSION_CHECK = $ENV{DBIC_NO_VERSION_CHECK} || 0;
+    $ENV{DBIC_NO_VERSION_CHECK} = 1;
 
-    my $since_tr = SQL::Translator->new(
+    # we'll reuse connect_info from existing schema for target ver connect
+    my $connect_info = $self->storage->connect_info;
+
+    # padd out user/pass if they don't exist
+    while ( scalar @$connect_info < 3 ) {
+        push @$connect_info, undef;
+    }
+
+    # drop anything extra
+    while ( scalar @$connect_info > 3 ) {
+        pop @$connect_info;
+    }
+
+    # add next version
+    push @$connect_info, { _version => $target_version };
+
+    my $target_schema = ref($self)->connect( @$connect_info );
+
+    # turn noises back to normal level
+    $ENV{DBIC_NO_VERSION_CHECK} = $old_DBIC_NO_VERSION_CHECK;
+
+    my $target_tr = SQL::Translator->new(
+        no_comments => 1,
+        #parser   => 'SQL::Translator::Parser::DBIx::Class::Jiftyesque',
         parser   => 'SQL::Translator::Parser::DBIx::Class',
         parser_args => {
-            dbic_schema => $since_schema,
+            dbic_schema => $target_schema,
         },
         producer => $sqlt_type,
+        show_warnings => 1,
     ) or $self->throw_exception(SQL::Translator->error);
-    $since_tr->translate;
+    $target_tr->translate;
 
-    # until schema contains things to be removed
-
-    my $until_schema =
-      ref($self)
-      ->connect( "DBI:Mock:", undef, undef,
-        { _version => $target_version, _type => 'until' } );
-
-    my $until_tr = SQL::Translator->new(
-        parser   => 'SQL::Translator::Parser::DBIx::Class',
-        parser_args => {
-            dbic_schema => $until_schema,
-        },
-        producer => $sqlt_type,
-    ) or $self->throw_exception(SQL::Translator->error);
-    $until_tr->translate;
-
-    my $since_diff = SQL::Translator::Diff->new({
+    my @diff = SQL::Translator::Diff->new({
         output_db     => $sqlt_type,
         source_schema => $curr_tr->schema,
-        target_schema => $since_tr->schema,
+        target_schema => $target_tr->schema,
         ignore_index_names => 1,
         ignore_constraint_names => 1,
     })->compute_differences->produce_diff_sql;
 
-    $since_diff =~ s/\n(BEGIN|COMMIT);\n//g;
 
-    my $until_diff = SQL::Translator::Diff->new({
-        output_db     => $sqlt_type,
-        source_schema => $since_tr->schema,
-        target_schema => $until_tr->schema,
-        ignore_index_names => 1,
-        ignore_constraint_names => 1,
-    })->compute_differences->produce_diff_sql;
-
-    $until_diff =~ s/\n(BEGIN|COMMIT);\n//g;
-
-    $self->storage->dbh_do(
-        sub {
-            my ( $storage, $dbh, $diff ) = @_;
-            $dbh->do($diff);
-        },
-        $since_diff
-    );
-    $self->storage->dbh_do(
-        sub {
-            my ( $storage, $dbh, $diff ) = @_;
-            $dbh->do($diff);
-        },
-        $until_diff
-    );
+    foreach my $line (@diff) {
+        $self->storage->dbh_do(
+            sub {
+                my ( $storage, $dbh ) = @_;
+                $dbh->do($line);
+            }
+        );
+    }
 
     # set row in dbix_class_schema_versions table
     $self->_set_db_version({version => $target_version});
@@ -319,16 +335,18 @@ sub upgrade_single_step {
 
 =head2 versioned_schema
 
+=over 4
+
 =item Arguments: version - the schema version we want to deploy
 
-=item Arguments: type - one of since/until
+=back
 
-Parse schema and remove classes, columns and relationships that are not valid for the requested version. The C<type> should be undef for use during deploy but set to since or until as part of schema diff generation during upgrade.
+Parse schema and remove classes, columns and relationships that are not valid for the requested version.
 
 =cut
 
 sub versioned_schema {
-    my ( $self, $_version, $type ) = @_;
+    my ( $self, $_version ) = @_;
 
     my $pversion = version->parse($_version);
 
@@ -351,7 +369,7 @@ sub versioned_schema {
                 my $source = shift;
                 $source->remove_column($column);
             };
-            $self->_since_until( $pversion, $type, $extra->{since},
+            $self->_since_until( $pversion, $extra->{since},
                 $extra->{until}, $name, $sub, $source );
         }
 
@@ -377,7 +395,7 @@ sub versioned_schema {
                 delete $rels{$relation_name};
                 $source->_relationships( \%rels );
             };
-            $self->_since_until( $pversion, $type, $extra->{since},
+            $self->_since_until( $pversion, $extra->{since},
                 $extra->{until}, $name, $sub, $source );
         }
 
@@ -397,13 +415,16 @@ sub versioned_schema {
             my $class = shift;
             $class->unregister_source($source_name);
         };
-        $self->_since_until( $pversion, $type, $extra->{since}, $extra->{until},
+        $self->_since_until( $pversion, $extra->{since}, $extra->{until},
             $name, $sub, $self );
     }
 }
 
 sub _since_until {
-    my ( $self, $pversion, $type, $since, $until, $name, $sub, $thing ) = @_;
+    my ( $self, $pversion, $since, $until, $name, $sub, $thing ) = @_;
+
+    push (@schema_versions, $since) if $since;
+    push (@schema_versions, $until) if $until;
 
     if (   $since
         && $until
@@ -412,16 +433,8 @@ sub _since_until {
         $self->throw_exception("$name has since greater than until");
     }
 
-    # only take note of versions if we are called with undef $type
-    unless ($type) {
-        push( @schema_versions, $since ) if $since;
-        push( @schema_versions, $until ) if $until;
-    }
-
     # until is absolute so parse before since
-    if (   ( !$type || ($type eq 'until') )
-        && $until
-        && $pversion > version->parse($until) )
+    if ( $until && $pversion > version->parse($until) )
     {
         $sub->($thing);
     }

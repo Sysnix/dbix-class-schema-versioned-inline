@@ -105,6 +105,11 @@ sub versions {
 
 Runs the subroutine that has been registered for the given version; if no subroutine was registered, returns a no-op subroutine.
 
+sub upgrade_to {
+    my ( $self, $version ) = @_;
+    return $UPGRADES{$version} || sub { };
+}
+
 =head2 rename table => CLASS, [column => COLUMN,] to => NAME
 
 Used in upgrade subroutines, this executes the necessary SQL to rename the table, or column in the table, to a new name.
