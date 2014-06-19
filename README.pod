@@ -1,6 +1,6 @@
 =head1 NAME
 
-DBIx::Class::Schema::Versioned::Jiftyesque - since/until schema versioning for DBIx::Class in the style of L<Jifty>
+DBIx::Class::Schema::Versioned::Inline - schema versioning for DBIx::Class with version information embedded inline in the schema definition
 
 =head1 VERSION
 
@@ -13,7 +13,7 @@ Version 0.001
 
  package MyApp::Schema;
 
- use base 'DBIx::Class::Schema::Versioned::Jiftyesque';
+ use base 'DBIx::Class::Schema::Versioned::Inline';
 
  our $VERSION = '0.002';
 
@@ -79,21 +79,9 @@ Version 0.001
 
  __PACKAGE__->resultset_attributes({ extra => { since => '0.002' }});
 
- ...
-
- package MyApp::Schema::Upgrade;
-
- use base 'DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade';
- use DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade qw(since rename);
-
- since '0.003' => sub {
-   rename class => 'Foo', to => 'Product', table => 'products';
-   # do some other things like renaming primary key column
- }
-
 =head1 DESCRIPTION
 
-This module extends L<DBIx::Class::Schema::Versioned> using simple 'since' and 'until' markers within result classes to specify the schema version at which classes and columns were introduced or removed. Column since/until definitions are included as part of 'extra' info in add_column(s). 
+This module extends L<DBIx::Class::Schema::Versioned> using simple 'since' and 'until' markers within result classes to specify the schema version at which classes and columns were introduced or removed. Column since/until definitions are included as part of 'extra' info in add_column(s).
 
 =head2 since
 
@@ -103,7 +91,7 @@ When a class is added to a schema at a specific schema version version then a 's
 
 It is not necessary to add this to the initial version of a class since any class without this atribute is assumed to have existed for ever.
 
-Using 'since' in a column or relationship definition denotes when the column/relation was added OR when changes were last made to it.
+Using 'since' in a column or relationship definition denotes the version at which the column/relation was added.
 
 =head2 until
 
@@ -112,6 +100,33 @@ When used as a class attribute this should be the final schema version at which 
  __PACKAGE__->resultset_attributes({ extra => { since => '0.3' }});
 
 Using 'until' in a column or relationship definition will cause removal of the column/relation from the table when the schema is upgraded past this version.
+
+=head2 renamed_from
+
+For renaming a class:
+
+ package MyApp::Schema::Result::Foo;
+
+ __PACKAGE__->table('foos');
+ __PACKAGE__->resultset_attributes({ extra => { until => '0.4 }});
+
+ package MyApp::Schema::Result::Fooey;
+
+ __PACKAGE__->table('fooeys');
+ __PACKAGE__->resultset_attributes({
+     extra => { since => '0.5, renamed_from => 'Foo' }
+ });
+
+Or for renaming a column:
+
+ __PACKAGE__->add_columns(
+     "height",
+     { data_type => "integer", extra => { until => '0.001' } },
+     "width",
+     { data_type => "integer", extra => {
+         since => '0.002', renamed_from => 'height' }
+     },
+ )
 
 
 =cut
@@ -122,16 +137,7 @@ Many methods are inherited or overloaded from L<DBIx::Class::Schema::Versioned>.
 
 =head2 connection
 
-Overloaded method. This checks the DBIC schema version against the DB version and warns if they are not the same or if the DB is unversioned.
-
-To avoid the checks on connect, set the environment var DBIC_NO_VERSION_CHECK or alternatively you can set the ignore_version attr in the forth argument like so:
-
-  my $schema = MyApp::Schema->connect(
-    $dsn,
-    $user,
-    $password,
-    { ignore_version => 1 },
-  );
+Overloaded method. This checks the DBIC schema version against the DB version and ???? TODO ???? (undecided so far) if they are not the same or if the DB is unversioned.
 
 
 =cut
@@ -147,13 +153,6 @@ Inherited method. Call this to initialise a previously unversioned database.
 =head2 ordered_schema_versions
 
 Overloaded method. Returns an ordered list of schema versions. This is then used to produce a set of steps to upgrade through to achieve the required schema version.
-
-
-=cut
-
-=head2 _cleanup_versions
-
-Used to weed out classes and columns that are not appropriate for our current database version based on since/until values. Collects available versions at the same time.
 
 
 =cut
@@ -177,6 +176,19 @@ Overloaded method. Call this to attempt to upgrade your database from the I<db_v
 All upgrade operations within this step are performed inside a single transaction so either all succeed or all fail. If successful the dbix_class_schema_versions table is updated with the I<target_version>.
 
 This method may be called repeatedly by the L</upgrade> method to upgrade through a series of updates.
+
+
+=cut
+
+=head2 versioned_schema
+
+=over 4
+
+=item Arguments: version - the schema version we want to deploy
+
+=back
+
+Parse schema and remove classes, columns and relationships that are not valid for the requested version.
 
 
 =cut
@@ -205,7 +217,7 @@ I will be notified, and then you'll automatically be notified of progress on you
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc DBIx::Class::Schema::Versioned::Jiftyesque
+    perldoc DBIx::Class::Schema::Versioned::Inline
 
 You can also look for information at:
 
@@ -213,19 +225,19 @@ You can also look for information at:
 
 =item * GitHub repository
 
-L<https://github.com/Sysnix/dbix-class-schema-versioned-jiftyesque>
+L<https://github.com/Sysnix/dbix-class-schema-versioned-inline>
 
 =item * AnnoCPAN: Annotated CPAN documentation
 
-L<http://annocpan.org/dist/DBIx-Class-Schema-Versioned-Jiftyesque>
+L<http://annocpan.org/dist/DBIx-Class-Schema-Versioned-Inline>
 
 =item * CPAN Ratings
 
-L<http://cpanratings.perl.org/d/DBIx-Class-Schema-Versioned-Jiftyesque>
+L<http://cpanratings.perl.org/d/DBIx-Class-Schema-Versioned-Inline>
 
 =item * Search CPAN
 
-L<http://search.cpan.org/dist/DBIx-Class-Schema-Versioned-Jiftyesque/>
+L<http://search.cpan.org/dist/DBIx-Class-Schema-Versioned-Inline/>
 
 =back
 
