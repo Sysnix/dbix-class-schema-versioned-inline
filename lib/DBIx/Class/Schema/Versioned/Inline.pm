@@ -1,8 +1,8 @@
-package DBIx::Class::Schema::Versioned::Jiftyesque;
+package DBIx::Class::Schema::Versioned::Inline;
 
 =head1 NAME
 
-DBIx::Class::Schema::Versioned::Jiftyesque - since/until schema versioning for DBIx::Class in the style of L<Jifty>
+DBIx::Class::Schema::Versioned::Inline - schema versioning for DBIx::Class with version information embedded inline in the schema definition
 
 =head1 VERSION
 
@@ -16,7 +16,7 @@ our $VERSION = '0.001';
 
  package MyApp::Schema;
 
- use base 'DBIx::Class::Schema::Versioned::Jiftyesque';
+ use base 'DBIx::Class::Schema::Versioned::Inline';
 
  our $VERSION = '0.002';
 
@@ -263,7 +263,6 @@ sub upgrade_single_step {
     my $curr_tr = SQL::Translator->new(
         no_comments => 1,
         parser   => 'SQL::Translator::Parser::DBIx::Class',
-        #parser   => 'SQL::Translator::Parser::DBIx::Class::Jiftyesque',
         parser_args => {
             dbic_schema => $self,
         },
@@ -301,7 +300,6 @@ sub upgrade_single_step {
 
     my $target_tr = SQL::Translator->new(
         no_comments => 1,
-        #parser   => 'SQL::Translator::Parser::DBIx::Class::Jiftyesque',
         parser   => 'SQL::Translator::Parser::DBIx::Class',
         parser_args => {
             dbic_schema => $target_schema,
@@ -468,7 +466,7 @@ I will be notified, and then you'll automatically be notified of progress on you
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc DBIx::Class::Schema::Versioned::Jiftyesque
+    perldoc DBIx::Class::Schema::Versioned::Inline
 
 You can also look for information at:
 
@@ -476,19 +474,19 @@ You can also look for information at:
 
 =item * GitHub repository
 
-L<https://github.com/Sysnix/dbix-class-schema-versioned-jiftyesque>
+L<https://github.com/Sysnix/dbix-class-schema-versioned-inline>
 
 =item * AnnoCPAN: Annotated CPAN documentation
 
-L<http://annocpan.org/dist/DBIx-Class-Schema-Versioned-Jiftyesque>
+L<http://annocpan.org/dist/DBIx-Class-Schema-Versioned-Inline>
 
 =item * CPAN Ratings
 
-L<http://cpanratings.perl.org/d/DBIx-Class-Schema-Versioned-Jiftyesque>
+L<http://cpanratings.perl.org/d/DBIx-Class-Schema-Versioned-Inline>
 
 =item * Search CPAN
 
-L<http://search.cpan.org/dist/DBIx-Class-Schema-Versioned-Jiftyesque/>
+L<http://search.cpan.org/dist/DBIx-Class-Schema-Versioned-Inline/>
 
 =back
 

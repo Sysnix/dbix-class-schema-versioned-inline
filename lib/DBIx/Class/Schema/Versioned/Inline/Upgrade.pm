@@ -1,26 +1,27 @@
-package DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade;
+package DBIx::Class::Schema::Versioned::Inline::Upgrade;
 
 =head1 NAME
 
-DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade
+DBIx::Class::Schema::Versioned::Inline::Upgrade
 
 =cut
 
 use Exporter 'import';
 use version 0.77;
 use vars qw/%UPGRADES @EXPORT/;
-@EXPORT = qw/since rename/;
+@EXPORT = qw/since before after/;
 
 =head1 SYNOPSIS
 
   package MyApp::Schema::Upgrade;
  
-  use base 'DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade';
-  use DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade qw( since rename );
+  use base 'DBIx::Class::Schema::Versioned::Inline::Upgrade';
 
-  since '0.3.3' => sub {
+  before '0.3.3' => sub {
 
-      # class 'Item' renamed to 'Product' with new table name 'products'
+      my $schema;
+
+      # 
       rename class => 'Item', to => 'Product', table => 'products';
 
       # class 'Product' column 'desc' renamed to 'description'
@@ -67,7 +68,7 @@ use vars qw/%UPGRADES @EXPORT/;
 
 =head1 DESCRIPTION
 
-schema/data upgrade helper for DBIC in the style of L<Jifty::Upgrade>.
+schema/data upgrade helper for DBIC
 
 =cut
 

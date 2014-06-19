@@ -4,10 +4,10 @@ use warnings FATAL => 'all';
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-    NAME               => 'DBIx::Class::Schema::Versioned::Jiftyesque',
+    NAME               => 'DBIx::Class::Schema::Versioned::Inline',
     AUTHOR             => q{Peter Mottram (SysPete) <peter@sysnix.com>},
-    VERSION_FROM       => 'lib/DBIx/Class/Schema/Versioned/Jiftyesque.pm',
-    ABSTRACT_FROM      => 'lib/DBIx/Class/Schema/Versioned/Jiftyesque.pm',
+    VERSION_FROM       => 'lib/DBIx/Class/Schema/Versioned/Inline.pm',
+    ABSTRACT_FROM      => 'lib/DBIx/Class/Schema/Versioned/Inline.pm',
     LICENSE            => 'perl',
     PL_FILES           => {},
     MIN_PERL_VERSION   => 5.006,
@@ -26,5 +26,5 @@ WriteMakefile(
         'version'         => 0.9902,
     },
     dist => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean => { FILES => 'DBIx-Class-Schema-Versioned-Jiftyesque-*' },
+    clean => { FILES => 'DBIx-Class-Schema-Versioned-Inline-*' },
 );

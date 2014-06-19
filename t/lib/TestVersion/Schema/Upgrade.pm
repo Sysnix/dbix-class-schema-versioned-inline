@@ -1,6 +1,6 @@
 package TestVersion::Schema::Upgrade;
-use base 'DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade';
-use DBIx::Class::Schema::Versioned::Jiftyesque::Upgrade qw(since rename);
+use base 'DBIx::Class::Schema::Versioned::Inline::Upgrade';
+use DBIx::Class::Schema::Versioned::Inline::Upgrade qw/since/;
 use strict;
 use warnings;
 

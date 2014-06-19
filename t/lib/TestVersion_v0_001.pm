@@ -66,7 +66,7 @@ __PACKAGE__->resultset_attributes({ extra => { since => '0.002' }});
 # Schema
 #
 package TestVersion::Schema;
-use base 'DBIx::Class::Schema::Versioned::Jiftyesque';
+use base 'DBIx::Class::Schema::Versioned::Inline';
 use strict;
 use warnings;
 
