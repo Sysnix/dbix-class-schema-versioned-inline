@@ -142,6 +142,7 @@ use Carp;
 use Data::Dumper::Concise;
 use SQL::Translator;
 use SQL::Translator::Diff;
+use Try::Tiny;
 use version 0.77;
 
 our @schema_versions;
@@ -317,18 +318,37 @@ sub upgrade_single_step {
         ignore_constraint_names => 1,
     })->compute_differences->produce_diff_sql;
 
+    my $exception;
 
-    foreach my $line (@diff) {
-        $self->storage->dbh_do(
+    try {
+        $self->txn_do(
             sub {
-                my ( $storage, $dbh ) = @_;
-                $dbh->do($line);
+                foreach my $line (@diff) {
+                    # drop comments and BEGIN/COMMIT
+                    print STDERR "XX: $line";
+                    next if $line =~ /(^--|BEGIN|COMMIT)/;
+                    $self->storage->dbh_do(
+                        sub {
+                            my ( $storage, $dbh ) = @_;
+                    print STDERR "YY: $line";
+                            $dbh->do($line);
+                        }
+                    );
+                }
             }
         );
     }
+    catch {
+        $exception = $_;
+    };
 
-    # set row in dbix_class_schema_versions table
-    $self->_set_db_version({version => $target_version});
+    if ( $exception ) {
+        carp "ERROR: $exception\n";
+    }
+    else {
+        # set row in dbix_class_schema_versions table
+        $self->_set_db_version({version => $target_version});
+    }
 }
 
 =head2 versioned_schema

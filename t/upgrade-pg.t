@@ -4,31 +4,21 @@ use strict;
 use warnings FATAL => 'all';
 
 use Test::Most;
-use Test::Warnings qw/warning warnings/;
+use Test::PostgreSQL;
 
 use Class::Unload;
 use Data::Dumper::Concise;
 use DBIx::Class::Schema::Loader qw/make_schema_at/;
 use File::Spec;
-use File::Temp;
 use version 0.77;
 
 use lib ( 'lib', File::Spec->catdir( 't', 'lib' ) );
 
-my ( $rset, $schema, @versions, $warning, @warnings );
+my ( $rset, $schema, @versions );
 
-if ( $ENV{DBIC_KEEP_TEST} ) {
-    $File::Temp::KEEP_ALL = 1;
-}
+$ENV{DBIC_NO_VERSION_CHECK} = 1;
 
-my $fh = File::Temp->new( TEMPLATE => 'upgrade_test_XXXXX' );
-my $dbfile = $fh->filename;
-
-if ( $ENV{DBIC_KEEP_TEST} ) {
-    diag "dbfile: $dbfile";
-}
-
-my $connect_info = [ "dbi:SQLite:dbname=$dbfile", undef, undef, { sqlite_use_immediate_transaction => 0 } ];
+my $pgsql = Test::PostgreSQL->new() or die;
 
 DEPLOY_0_001: {
 
@@ -36,14 +26,7 @@ DEPLOY_0_001: {
 
     use_ok 'TestVersion_v0_001';
 
-    $warning = warning {
-        $schema = TestVersion::Schema->connect(@$connect_info);
-    };
-    like(
-        $warning,
-        qr/Your DB is currently unversioned. Please call upgrade/,
-        "Unversioned warning"
-    ) or diag 'got warning(s): ', explain($warning);
+    $schema = TestVersion::Schema->connect($pgsql->dsn);
 
     # deploy (also installs initial version)
 
@@ -63,14 +46,7 @@ UPGRADE_0_002: {
 
     use_ok 'TestVersion_v0_002';
 
-    $warning = warning {
-        $schema = TestVersion::Schema->connect(@$connect_info);
-    };
-    like(
-        $warning,
-        qr/Versions out of sync.+please call upgrade/,
-        "Versions out of sync warning"
-    ) or diag 'got warning(s): ', explain($warning);
+    $schema = TestVersion::Schema->connect($pgsql->dsn);
 
     cmp_ok( $schema->schema_version, 'eq', '0.002', "Check schema version" );
     cmp_ok( $schema->get_db_version, 'eq', '0.001', "Check db version" );
@@ -78,14 +54,9 @@ UPGRADE_0_002: {
     # let's upgrade!
 
     lives_ok(
-        sub { $warning = warning { $schema->upgrade } },
+        sub { $schema->upgrade },
         "Upgrade " . $schema->get_db_version . " to " . $schema->schema_version
     );
-    like(
-        $warning,
-        qr/attempting upgrade from 0.001 to 0.002/,
-        "attempting upgrade warning"
-    ) or diag 'got warning(s): ', explain($warning);
 
     cmp_ok( $schema->get_db_version, 'eq', '0.002',
         "Check db version post upgrade" );
@@ -104,7 +75,7 @@ TEST_0_002: {
             exclude => qr/dbix_class_schema_versions/,
             naming  => 'current',
         },
-        $connect_info,
+        [ $pgsql->dsn ],
     );
 
     my $schema = 'Test::Schema';
@@ -134,14 +105,7 @@ UPGRADE_0_003: {
 
     use_ok 'TestVersion_v0_003';
 
-    $warning = warning {
-        $schema = TestVersion::Schema->connect(@$connect_info);
-    };
-    like(
-        $warning,
-        qr/Versions out of sync.+please call upgrade/,
-        "Versions out of sync warning"
-    ) or diag 'got warning(s): ', explain($warning);
+    $schema = TestVersion::Schema->connect($pgsql->dsn);
 
     cmp_ok( $schema->schema_version, 'eq', '0.003', "Check schema version" );
     cmp_ok( $schema->get_db_version, 'eq', '0.002', "Check db version" );
@@ -149,14 +113,9 @@ UPGRADE_0_003: {
     # let's upgrade!
 
     lives_ok(
-        sub { $warning = warning { $schema->upgrade } },
+        sub { $schema->upgrade },
         "Upgrade " . $schema->get_db_version . " to " . $schema->schema_version
     );
-    like(
-        $warning,
-        qr/attempting upgrade from 0.002 to 0.003/,
-        "attempting upgrade warning"
-    ) or diag 'got warning(s): ', explain($warning);
 
     cmp_ok( $schema->get_db_version, 'eq', '0.003',
         "Check db version post upgrade" );
@@ -176,7 +135,7 @@ TEST_0_003: {
             exclude => qr/dbix_class_schema_versions/,
             naming  => 'current',
         },
-        $connect_info,
+        [ $pgsql->dsn ],
     );
 
     my $schema = 'Test::Schema';
@@ -207,14 +166,7 @@ UPGRADE_0_3: {
 
     use_ok 'TestVersion_v0_3';
 
-    $warning = warning {
-        $schema = TestVersion::Schema->connect(@$connect_info);
-    };
-    like(
-        $warning,
-        qr/Versions out of sync.+please call upgrade/,
-        "Versions out of sync warning"
-    ) or diag 'got warning(s): ', explain($warning);
+    $schema = TestVersion::Schema->connect($pgsql->dsn);
 
     cmp_ok( $schema->schema_version, 'eq', '0.3',   "Check schema version" );
     cmp_ok( $schema->get_db_version, 'eq', '0.003', "Check db version" );
@@ -222,14 +174,9 @@ UPGRADE_0_3: {
     # let's upgrade!
 
     lives_ok(
-        sub { $warning = warning { $schema->upgrade } },
+        sub { $schema->upgrade },
         "Upgrade " . $schema->get_db_version . " to " . $schema->schema_version
     );
-    cmp_deeply(
-        $warning,
-        [re("attempting"), re("attempting"),re("attempting")],
-        "attempting upgrade warning"
-    ) or diag 'got warning(s): ', explain($warning);
 
     cmp_ok( $schema->get_db_version, 'eq', '0.3',
         "Check db version post upgrade" );
@@ -249,7 +196,7 @@ TEST_0_3: {
             exclude => qr/dbix_class_schema_versions/,
             naming  => 'current',
         },
-        $connect_info,
+        [ $pgsql->dsn ],
     );
 
     my $schema = 'Test::Schema';
@@ -280,14 +227,7 @@ UPGRADE_0_4: {
 
     use_ok 'TestVersion_v0_4';
 
-    $warning = warning {
-        $schema = TestVersion::Schema->connect(@$connect_info);
-    };
-    like(
-        $warning,
-        qr/Versions out of sync.+please call upgrade/,
-        "Versions out of sync warning"
-    ) or diag 'got warning(s): ', explain($warning);
+    $schema = TestVersion::Schema->connect($pgsql->dsn);
 
     cmp_ok( $schema->schema_version, 'eq', '0.4', "Check schema version" );
     cmp_ok( $schema->get_db_version, 'eq', '0.3', "Check db version" );
@@ -295,14 +235,9 @@ UPGRADE_0_4: {
     # let's upgrade!
 
     lives_ok(
-        sub { $warning = warning { $schema->upgrade } },
+        sub { $schema->upgrade },
         "Upgrade " . $schema->get_db_version . " to " . $schema->schema_version
     );
-    like(
-        $warning,
-        qr/attempting upgrade from 0.3 to 0.4/,
-        "attempting upgrade warning"
-    ) or diag 'got warning(s): ', explain($warning);
 
     cmp_ok( $schema->get_db_version, 'eq', '0.4',
         "Check db version post upgrade" );
@@ -322,7 +257,7 @@ TEST_0_4: {
             exclude => qr/dbix_class_schema_versions/,
             naming  => 'current',
         },
-        $connect_info,
+        [ $pgsql->dsn ],
     );
 
     my $schema = 'Test::Schema';

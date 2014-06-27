@@ -18,6 +18,7 @@ WriteMakefile(
         'DBIx::Class::Schema::Loader' => 0.07040,
         'Class::Unload'               => 0.08,
         'File::Spec'                  => 3.47,
+        'Test::Database'              => 1.113,
         'Test::Most'                  => 0.33,
     },
     PREREQ_PM => {

@@ -4,7 +4,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Test::Most;
-use Test::Database;
+use Test::PostgreSQL;
 
 use Class::Unload;
 use Data::Dumper;
@@ -15,41 +15,15 @@ use lib ( 'lib', File::Spec->catdir( 't', 'lib' ) );
 
 $ENV{DBIC_NO_VERSION_CHECK} = 1;
 
-my ( @handles, $rset, $schema, @versions );
+my ( $rset, $schema, @versions );
 
-my @all_handles = Test::Database->handles();
-my %exclude_dbd = (
-    CSV => 1,
-    DBM => 1,
-    SQLite2 => 1,
-);
-
-#diag "All handles: " . Dumper(@all_handles);
-
-for my $testdb (@all_handles) {
-    next if exists $exclude_dbd{$testdb->dbd};
-    push @handles, $testdb;
-}
-
-if ( scalar @handles ) {
-    #diag "Handles: " . Dumper(" ", @handles);
-}
-else {
-    plan skip_all => 'No test database handles available';
-}
-
-for my $handle (@handles) {
-
-    # cleanup old handle (if it exists)
-    $handle->driver->drop_database($handle->name);
-
-    diag "Testing with DBI driver " . $handle->dbd();
 
 VERSION_0_001: {
 
     use_ok 'TestVersion_v0_001';
 
-    $schema = TestVersion::Schema->connect($handle->connection_info);
+    my $pgsql = Test::PostgreSQL->new() or die;
+    $schema = TestVersion::Schema->connect($pgsql->dsn);
 
     @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
 
@@ -80,14 +54,13 @@ VERSION_0_001: {
     Class::Unload->unload('TestVersion::Bar');
     Class::Unload->unload('TestVersion::Schema');
 }
-}
-done_testing;
-__DATA__
+
 VERSION_0_002: {
 
     use_ok 'TestVersion_v0_002';
 
-    $schema = TestVersion::Schema->connect("dbi:SQLite:dbname=:memory:");
+    my $pgsql = Test::PostgreSQL->new() or die;
+    $schema = TestVersion::Schema->connect($pgsql->dsn);
 
     @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
 
@@ -130,7 +103,8 @@ VERSION_0_003: {
 
     use_ok 'TestVersion_v0_003';
 
-    $schema = TestVersion::Schema->connect("dbi:SQLite:dbname=:memory:");
+    my $pgsql = Test::PostgreSQL->new() or die;
+    $schema = TestVersion::Schema->connect($pgsql->dsn);
 
     @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
 
@@ -174,7 +148,8 @@ VERSION_0_3: {
 
     use_ok 'TestVersion_v0_3';
 
-    $schema = TestVersion::Schema->connect("dbi:SQLite:dbname=:memory:");
+    my $pgsql = Test::PostgreSQL->new() or die;
+    $schema = TestVersion::Schema->connect($pgsql->dsn);
 
     @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
 
@@ -217,7 +192,8 @@ VERSION_0_4: {
 
     use_ok 'TestVersion_v0_4';
 
-    $schema = TestVersion::Schema->connect("dbi:SQLite:dbname=:memory:");
+    my $pgsql = Test::PostgreSQL->new() or die;
+    $schema = TestVersion::Schema->connect($pgsql->dsn);
 
     @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3', '0.4' );
 
@@ -255,5 +231,5 @@ VERSION_0_4: {
     Class::Unload->unload('TestVersion::Bar');
     Class::Unload->unload('TestVersion::Schema');
 }
-}
+
 done_testing;

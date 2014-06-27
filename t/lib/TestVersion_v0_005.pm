@@ -87,6 +87,13 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key('bars_id');
 
 __PACKAGE__->belongs_to(
+    'Foo',
+    'TestVersion::Foo',
+    'bars_id',
+    { extra => { until => '0.002' }},
+);
+
+__PACKAGE__->belongs_to(
     'Tree',
     'TestVersion::Tree',
     'bars_id',
