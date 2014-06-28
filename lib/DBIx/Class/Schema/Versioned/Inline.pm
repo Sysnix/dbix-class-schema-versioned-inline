@@ -325,12 +325,10 @@ sub upgrade_single_step {
             sub {
                 foreach my $line (@diff) {
                     # drop comments and BEGIN/COMMIT
-                    print STDERR "XX: $line";
                     next if $line =~ /(^--|BEGIN|COMMIT)/;
                     $self->storage->dbh_do(
                         sub {
                             my ( $storage, $dbh ) = @_;
-                    print STDERR "YY: $line";
                             $dbh->do($line);
                         }
                     );
