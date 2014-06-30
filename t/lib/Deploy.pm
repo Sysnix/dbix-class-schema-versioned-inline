@@ -1,38 +1,45 @@
-package TestDeploy;
+package Deploy;
 use Test::Roo::Role;
 
-requires 'schema';
+requires 'connect_info';
 
 use Class::Unload;
-use namespace::clean;
+#use namespace::clean;
+use Test::Deep;
 use Test::Most;
-use Data::Dumper::Concise;
+#use Data::Dumper::Concise;
 
+has database => (
+    is => 'lazy',
+    clearer => 1,
+);
 
-my ( $rset, @versions );
+has schema_version => (
+    is => 'rw',
+    default => 0,
+);
 
-sub unload_classes {
-    Class::Unload->unload('TestVersion::Schema::Result::Bar');
-    Class::Unload->unload('TestVersion::Schema::Result::Foo');
-    Class::Unload->unload('TestVersion::Schema::Result::Tree');
-    Class::Unload->unload('TestVersion::Schema::Result::Schema');
-}
+#sub unload_classes {
+#    #Class::Unload->unload('TestVersion::Schema::Result::Schema');
+#}
 
-VERSION_0_001: {
+after each_test => sub {
+    my $self = shift;
+    $self->clear_database;
+#    Class::Unload->unload('TestVersion::Schema::Result::Bar');
+#    Class::Unload->unload('TestVersion::Schema::Result::Foo');
+#    Class::Unload->unload('TestVersion::Schema::Result::Tree');
+};
 
-    use_ok 'TestVersion::Schema';
+test 'deploy v0.001' => sub {
+    my $self = shift;
 
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.001' };
-    use warnings 'redefine';
 
-    #use Test::PostgreSQL;
-    #my $pgsql = Test::PostgreSQL->new() or die;
-    #$schema = TestVersion::Schema->connect($pgsql->dsn);
+    my $schema = TestVersion::Schema->connect($self->connect_info);
 
-    $schema = TestVersion::Schema->connect(@{$self->get_conn_info});
-
-    @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.001', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -57,22 +64,17 @@ VERSION_0_001: {
       || diag "got: "
         . join( " ", $foo->columns );
 
-    unload_classes();
-}
-}
-1;
-__END__
-VERSION_0_002: {
+};
 
-    use_ok 'TestVersion::Schema';
+test 'deploy v0.001' => sub {
+    my $self = shift;
 
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.002' };
-    use warnings 'redefine';
 
-    $schema = TestVersion::Schema->connect($self->get_conn_info);
+    my $schema = TestVersion::Schema->connect($self->connect_info);
 
-    @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.002', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -104,8 +106,9 @@ VERSION_0_002: {
         "Foo columns OK"
     );
 
-    unload_classes();
-}
+};
+1;
+__END__
 
 VERSION_0_003: {
 
@@ -242,5 +245,5 @@ VERSION_0_4: {
 
     unload_classes();
 }
-}
+
 1;
