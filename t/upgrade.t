@@ -28,7 +28,7 @@ if ( $ENV{DBIC_KEEP_TEST} ) {
     diag "dbfile: $dbfile";
 }
 
-my $connect_info = [ "dbi:SQLite:dbname=$dbfile", undef, undef, { sqlite_use_immediate_transaction => 0 } ];
+my $connect_info = [ "dbi:SQLite:dbname=$dbfile", undef, undef, { sqlite_use_immediate_transaction => 0, on_connect_call => 'use_foreign_keys' } ];
 
 DEPLOY_0_001: {
 
@@ -167,6 +167,8 @@ UPGRADE_0_003: {
     Class::Unload->unload('TestVersion::Tree');
 }
 
+done_testing;
+exit;
 TEST_0_003: {
 
     make_schema_at(

@@ -272,6 +272,9 @@ sub upgrade_single_step {
     ) or $self->throw_exception(SQL::Translator->error);
     $curr_tr->translate;
 
+    #print STDERR "======= CURRENT =======\n";
+#print STDERR Dumper($curr_tr);
+
     # translate target schema
 
     # our target future-versioned connect causes warning messages we don't want
@@ -309,6 +312,12 @@ sub upgrade_single_step {
         show_warnings => 1,
     ) or $self->throw_exception(SQL::Translator->error);
     $target_tr->translate;
+
+    #print STDERR "======= TARGET =======\n";
+#print STDERR Dumper($target_tr);
+
+    # now we create the diff which we need as array so we can process one
+    # line at a time
 
     my @diff = SQL::Translator::Diff->new({
         output_db     => $sqlt_type,
