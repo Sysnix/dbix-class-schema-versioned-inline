@@ -416,7 +416,7 @@ sub upgrade_single_step {
                 foreach my $line (@diff) {
 
                     # drop comments and BEGIN/COMMIT
-                    next if $line =~ /(^--|BEGIN TRANSACTION|COMMIT)/;
+                    next if $line =~ /(^--|BEGIN|COMMIT)/;
                     $self->storage->dbh_do(
                         sub {
                             my ( $storage, $dbh ) = @_;
