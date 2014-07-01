@@ -98,6 +98,23 @@ our $VERSION = '0.001';
 
  __PACKAGE__->resultset_attributes( { versioned => { until => '0.002' } } );
 
+ ...
+
+ package MyApp::Schema::Upgrade;
+
+ use base 'DBIx::Class::Schema::Versioned::Inline::Upgrade';
+ use DBIx::Class::Schema::Versioned::Inline::Upgrade qw/before after/;
+
+ before '0.3.3' => sub {
+     my $schema = shift;
+     $schema->resultset('Foo')->update({ bar => '' });
+ };
+
+ after '0.3.3' => sub {
+     my $schema = shift;
+     # do something else
+ };
+
 
 =head1 DESCRIPTION
 
