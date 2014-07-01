@@ -111,7 +111,14 @@ When a class is added to a schema at a specific schema version version then a 's
 
 It is not necessary to add this to the initial version of a class since any class without this atribute is assumed to have existed for ever.
 
-Using 'since' in a column or relationship definition denotes the version at which the column/relation was added.
+Using 'since' in a column or relationship definition denotes the version at which the column/relation was added. For example:
+
+ __PACKAGE__->add_column(
+   "age",
+   { data_type   => "integer", is_nullable => 1,
+     versioned   => { since => '0.002' }
+   }
+ );
 
 =head2 until
 
