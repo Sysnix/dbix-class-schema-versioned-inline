@@ -1,11 +1,11 @@
 package Deploy;
+
+$ENV{DBIC_NO_VERSION_CHECK} = 1;
+
 use Test::Roo::Role;
+use Test::Most;
 
 requires 'connect_info';
-
-use Class::Unload;
-use Test::Deep;
-use Test::Most;
 
 has database => (
     is => 'lazy',
