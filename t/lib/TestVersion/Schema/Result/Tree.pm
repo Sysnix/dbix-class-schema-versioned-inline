@@ -18,12 +18,10 @@ __PACKAGE__->add_columns(
 
 __PACKAGE__->set_primary_key('trees_id');
 
-__PACKAGE__->belongs_to(
-    'bar',
-    'TestVersion::Schema::Result::Bar',
-    'bars_id',
-);
+__PACKAGE__->belongs_to( 'bar', 'TestVersion::Schema::Result::Bar',
+    'bars_id', );
 
-__PACKAGE__->resultset_attributes({ versioned => { since => '0.003', renamed_from => 'Foo' }});
+__PACKAGE__->resultset_attributes(
+    { versioned => { since => '0.003', renamed_from => 'Foo' } } );
 
 1;

@@ -24,38 +24,6 @@ our $VERSION = '0.001';
 
  ...
 
- package MyApp::Schema::Result::Foo;
-
- use base 'DBIx::Class::Core';
-
- __PACKAGE__->table('foos');
-
- __PACKAGE__->add_columns(
-   "foos_id",
-   { data_type => 'integer', is_auto_increment => 1 },
-   "age",
-   { data_type => "integer", is_nullable => 1,
-     versioned => { since => '0.002' } },
-   "height",
-   { data_type => "integer", is_nullable => 1 },
-   "bars_id",
-   { data_type => 'integer', is_foreign_key => 1, is_nullable => 0,
-     versioned => { since => '0.002' } },
- );
-
- __PACKAGE__->set_primary_key('foos_id');
-
- __PACKAGE__->has_one(
-   'Bar',
-   'TestVersion::Schema::Result::Bar',
-   'bars_id',
-   { versioned => { since => '0.002' }},
- );
-
- __PACKAGE__->resultset_attributes({ versioned => { until => '0.002' }});
-
- ...
-
  package MyApp::Schema::Result::Bar;
 
  use base 'DBIx::Class::Core';
@@ -63,28 +31,73 @@ our $VERSION = '0.001';
  __PACKAGE__->table('bars');
 
  __PACKAGE__->add_columns(
-   "bars_id",
-   { data_type => 'integer', is_auto_increment => 1, },
-   "age",
-   { data_type => "integer", is_nullable => 1 },
-   "height",
-   { data_type => "integer", is_nullable => 1,
-     versioned => { until => '0.003' } },
-   "weight",
-   { data_type => "integer", is_nullable => 1,
-     versioned => { until => '0.3' } },
+    "bars_id",
+    { data_type => 'integer', is_auto_increment => 1, },
+    "age",
+    { data_type => "integer", is_nullable => 1 },
+    "height",
+    {
+      data_type   => "integer", is_nullable => 1,
+      versioned   => { since => '0.003' }
+    },
+    "weight",
+    {
+      data_type   => "integer", is_nullable => 1,
+      versioned   => { until => '0.3' }
+    },
  );
 
  __PACKAGE__->set_primary_key('bars_id');
 
- __PACKAGE__->belongs_to(
-   'Foo',
-   'TestVersion::Schema::Result::Foo',
-   'bars_id',
-   { versioned => { until => '0.002' }},
+ __PACKAGE__->has_many(
+    'foos', 'TestVersion::Schema::Result::Foo',
+    'foos_id', { versioned => { until => '0.002' } },
  );
 
- __PACKAGE__->resultset_attributes({ versioned => { since => '0.002' }});
+ __PACKAGE__->resultset_attributes( { versioned => { since => '0.002' } } );
+
+ ...
+
+ package MyApp::Schema::Result::Foo;
+
+ use base 'DBIx::Class::Core';
+
+ __PACKAGE__->table('foos');
+
+ __PACKAGE__->add_columns(
+    "foos_id",
+    { data_type => 'integer', is_auto_increment => 1 },
+    "age",
+    {
+      data_type => "integer", is_nullable => 1,
+      versioned   => { since => '0.002' }
+    },
+    "height",
+    {
+     data_type => "integer", is_nullable => 1,
+     versioned => { until => '0.001' }
+    },
+    "width",
+    {
+      data_type => "integer", is_nullable => 1,
+      versioned => { since => '0.002', renamed_from => 'height' }
+    },
+    "bars_id",
+    {
+      data_type => 'integer', is_foreign_key => 1, is_nullable => 0,
+      versioned => { since => '0.002' }
+    },
+ );
+
+ __PACKAGE__->set_primary_key('foos_id');
+
+ __PACKAGE__->belongs_to(
+    'bar', 'TestVersion::Schema::Result::Bar',
+    'bars_id', { versioned => { since => '0.002' } },
+ );
+
+ __PACKAGE__->resultset_attributes( { versioned => { until => '0.002' } } );
+
 
 =head1 DESCRIPTION
 
@@ -130,8 +143,9 @@ Or for renaming a column:
      "height",
      { data_type => "integer", versioned => { until => '0.001' } },
      "width",
-     { data_type => "integer", versioned => {
-         since => '0.002', renamed_from => 'height' }
+     {
+       data_type => "integer",
+       versioned => { since => '0.002', renamed_from => 'height' }
      },
  )
 
@@ -266,13 +280,13 @@ sub upgrade_single_step {
 
     my $curr_tr = SQL::Translator->new(
         no_comments => 1,
-        parser   => 'SQL::Translator::Parser::DBIx::Class',
+        parser      => 'SQL::Translator::Parser::DBIx::Class',
         parser_args => {
             dbic_schema => $self,
         },
-        producer => $sqlt_type,
+        producer      => $sqlt_type,
         show_warnings => 1,
-    ) or $self->throw_exception(SQL::Translator->error);
+    ) or $self->throw_exception( SQL::Translator->error );
     $curr_tr->translate;
 
     # translate target schema
@@ -297,32 +311,34 @@ sub upgrade_single_step {
     # add next version
     push @$connect_info, { _version => $target_version };
 
-    my $target_schema = ref($self)->connect( @$connect_info );
+    my $target_schema = ref($self)->connect(@$connect_info);
 
     # turn noises back to normal level
     $ENV{DBIC_NO_VERSION_CHECK} = $old_DBIC_NO_VERSION_CHECK;
 
     my $target_tr = SQL::Translator->new(
         no_comments => 1,
-        parser   => 'SQL::Translator::Parser::DBIx::Class',
+        parser      => 'SQL::Translator::Parser::DBIx::Class',
         parser_args => {
             dbic_schema => $target_schema,
         },
-        producer => $sqlt_type,
+        producer      => $sqlt_type,
         show_warnings => 1,
-    ) or $self->throw_exception(SQL::Translator->error);
+    ) or $self->throw_exception( SQL::Translator->error );
     $target_tr->translate;
 
     # now we create the diff which we need as array so we can process one
     # line at a time
 
-    my @diff = SQL::Translator::Diff->new({
-        output_db     => $sqlt_type,
-        source_schema => $curr_tr->schema,
-        target_schema => $target_tr->schema,
-        ignore_index_names => 1,
-        ignore_constraint_names => 1,
-    })->compute_differences->produce_diff_sql;
+    my @diff = SQL::Translator::Diff->new(
+        {
+            output_db               => $sqlt_type,
+            source_schema           => $curr_tr->schema,
+            target_schema           => $target_tr->schema,
+            ignore_index_names      => 1,
+            ignore_constraint_names => 1,
+        }
+    )->compute_differences->produce_diff_sql;
 
     my $exception;
 
@@ -330,6 +346,7 @@ sub upgrade_single_step {
         $self->txn_do(
             sub {
                 foreach my $line (@diff) {
+
                     # drop comments and BEGIN/COMMIT
                     next if $line =~ /(^--|BEGIN|COMMIT)/;
                     $self->storage->dbh_do(
@@ -346,12 +363,12 @@ sub upgrade_single_step {
         $exception = $_;
     };
 
-    if ( $exception ) {
+    if ($exception) {
         carp "ERROR: $exception\n";
     }
     else {
         # set row in dbix_class_schema_versions table
-        $self->_set_db_version({version => $target_version});
+        $self->_set_db_version( { version => $target_version } );
     }
 }
 
@@ -391,7 +408,8 @@ sub versioned_schema {
                 my $source = shift;
                 $source->remove_column($column);
             };
-            $self->_since_until( $pversion, $since, $until, $name, $sub, $source );
+            $self->_since_until( $pversion, $since, $until, $name, $sub,
+                $source );
         }
 
         # now check relations
@@ -436,16 +454,15 @@ sub versioned_schema {
             my $class = shift;
             $class->unregister_source($source_name);
         };
-        $self->_since_until( $pversion, $since, $until,
-            $name, $sub, $self );
+        $self->_since_until( $pversion, $since, $until, $name, $sub, $self );
     }
 }
 
 sub _since_until {
     my ( $self, $pversion, $since, $until, $name, $sub, $thing ) = @_;
 
-    push (@schema_versions, $since) if $since;
-    push (@schema_versions, $until) if $until;
+    push( @schema_versions, $since ) if $since;
+    push( @schema_versions, $until ) if $until;
 
     if (   $since
         && $until
@@ -455,12 +472,10 @@ sub _since_until {
     }
 
     # until is absolute so parse before since
-    if ( $until && $pversion > version->parse($until) )
-    {
+    if ( $until && $pversion > version->parse($until) ) {
         $sub->($thing);
     }
-    if ( $since && $pversion < version->parse($since) )
-    {
+    if ( $since && $pversion < version->parse($since) ) {
         $sub->($thing);
     }
 }

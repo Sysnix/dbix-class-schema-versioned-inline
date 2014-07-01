@@ -21,38 +21,6 @@ Version 0.001
 
  ...
 
- package MyApp::Schema::Result::Foo;
-
- use base 'DBIx::Class::Core';
-
- __PACKAGE__->table('foos');
-
- __PACKAGE__->add_columns(
-   "foos_id",
-   { data_type => 'integer', is_auto_increment => 1 },
-   "age",
-   { data_type => "integer", is_nullable => 1,
-     versioned => { since => '0.002' } },
-   "height",
-   { data_type => "integer", is_nullable => 1 },
-   "bars_id",
-   { data_type => 'integer', is_foreign_key => 1, is_nullable => 0,
-     versioned => { since => '0.002' } },
- );
-
- __PACKAGE__->set_primary_key('foos_id');
-
- __PACKAGE__->has_one(
-   'Bar',
-   'TestVersion::Schema::Result::Bar',
-   'bars_id',
-   { versioned => { since => '0.002' }},
- );
-
- __PACKAGE__->resultset_attributes({ versioned => { until => '0.002' }});
-
- ...
-
  package MyApp::Schema::Result::Bar;
 
  use base 'DBIx::Class::Core';
@@ -60,28 +28,73 @@ Version 0.001
  __PACKAGE__->table('bars');
 
  __PACKAGE__->add_columns(
-   "bars_id",
-   { data_type => 'integer', is_auto_increment => 1, },
-   "age",
-   { data_type => "integer", is_nullable => 1 },
-   "height",
-   { data_type => "integer", is_nullable => 1,
-     versioned => { until => '0.003' } },
-   "weight",
-   { data_type => "integer", is_nullable => 1,
-     versioned => { until => '0.3' } },
+    "bars_id",
+    { data_type => 'integer', is_auto_increment => 1, },
+    "age",
+    { data_type => "integer", is_nullable => 1 },
+    "height",
+    {
+      data_type   => "integer", is_nullable => 1,
+      versioned   => { since => '0.003' }
+    },
+    "weight",
+    {
+      data_type   => "integer", is_nullable => 1,
+      versioned   => { until => '0.3' }
+    },
  );
 
  __PACKAGE__->set_primary_key('bars_id');
 
- __PACKAGE__->belongs_to(
-   'Foo',
-   'TestVersion::Schema::Result::Foo',
-   'bars_id',
-   { versioned => { until => '0.002' }},
+ __PACKAGE__->has_many(
+    'foos', 'TestVersion::Schema::Result::Foo',
+    'foos_id', { versioned => { until => '0.002' } },
  );
 
- __PACKAGE__->resultset_attributes({ versioned => { since => '0.002' }});
+ __PACKAGE__->resultset_attributes( { versioned => { since => '0.002' } } );
+
+ ...
+
+ package MyApp::Schema::Result::Foo;
+
+ use base 'DBIx::Class::Core';
+
+ __PACKAGE__->table('foos');
+
+ __PACKAGE__->add_columns(
+    "foos_id",
+    { data_type => 'integer', is_auto_increment => 1 },
+    "age",
+    {
+      data_type => "integer", is_nullable => 1,
+      versioned   => { since => '0.002' }
+    },
+    "height",
+    {
+     data_type => "integer", is_nullable => 1,
+     versioned => { until => '0.001' }
+    },
+    "width",
+    {
+      data_type => "integer", is_nullable => 1,
+      versioned => { since => '0.002', renamed_from => 'height' }
+    },
+    "bars_id",
+    {
+      data_type => 'integer', is_foreign_key => 1, is_nullable => 0,
+      versioned => { since => '0.002' }
+    },
+ );
+
+ __PACKAGE__->set_primary_key('foos_id');
+
+ __PACKAGE__->belongs_to(
+    'bar', 'TestVersion::Schema::Result::Bar',
+    'bars_id', { versioned => { since => '0.002' } },
+ );
+
+ __PACKAGE__->resultset_attributes( { versioned => { until => '0.002' } } );
+
 
 =head1 DESCRIPTION
 
@@ -127,8 +140,9 @@ Or for renaming a column:
      "height",
      { data_type => "integer", versioned => { until => '0.001' } },
      "width",
-     { data_type => "integer", versioned => {
-         since => '0.002', renamed_from => 'height' }
+     {
+       data_type => "integer",
+       versioned => { since => '0.002', renamed_from => 'height' }
      },
  )
 
