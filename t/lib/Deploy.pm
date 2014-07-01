@@ -12,11 +12,6 @@ has database => (
     clearer => 1,
 );
 
-has schema_version => (
-    is => 'rw',
-    default => 0,
-);
-
 after each_test => sub {
     my $self = shift;
     $self->clear_database;

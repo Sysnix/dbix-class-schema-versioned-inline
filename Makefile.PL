@@ -16,14 +16,16 @@ WriteMakefile(
     },
     BUILD_REQUIRES => {
         'DBIx::Class::Schema::Loader' => 0.07040,
-        'Class::Unload'               => 0.08,
         'File::Spec'                  => 3.47,
-        'Test::Database'              => 1.113,
+        'DBD::SQLite'                 => 1.40,
         'Test::Most'                  => 0.33,
+        'Test::Roo'                   => 1.003,
+        'Test::Warnings'              => 0.012,
     },
     PREREQ_PM => {
         'DBIx::Class'     => 0.08270,
         'SQL::Translator' => 0.11018,
+        'Try::Tiny'       => 0.18,
         'version'         => 0.9902,
     },
     dist => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },

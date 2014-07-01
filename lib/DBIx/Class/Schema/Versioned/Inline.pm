@@ -256,7 +256,6 @@ sub upgrade_single_step {
     eval {
         eval "require $upgradeclass" or return;
         my @sql = $upgradeclass->upgrade_to($target_version);
-    warn Dumper(@sql);
     };
 
     # translate current schema
@@ -271,9 +270,6 @@ sub upgrade_single_step {
         show_warnings => 1,
     ) or $self->throw_exception(SQL::Translator->error);
     $curr_tr->translate;
-
-    #print STDERR "======= CURRENT =======\n";
-#print STDERR Dumper($curr_tr);
 
     # translate target schema
 
@@ -312,9 +308,6 @@ sub upgrade_single_step {
         show_warnings => 1,
     ) or $self->throw_exception(SQL::Translator->error);
     $target_tr->translate;
-
-    #print STDERR "======= TARGET =======\n";
-#print STDERR Dumper($target_tr);
 
     # now we create the diff which we need as array so we can process one
     # line at a time
