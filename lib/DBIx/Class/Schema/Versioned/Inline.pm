@@ -80,7 +80,12 @@ our $VERSION = '0.001';
     "width",
     {
       data_type => "integer", is_nullable => 1,
-      versioned => { since => '0.002', renamed_from => 'height' }
+      versioned => {
+        since => [
+          '0.002' => { renamed_from => 'height' },
+          '0.3    => { is_nullable  => 0, default_value => 0 } },
+        ],
+      }
     },
     "bars_id",
     {
@@ -132,9 +137,39 @@ Using 'since' in a column or relationship definition denotes the version at whic
 
  __PACKAGE__->add_column(
    "age",
-   { data_type   => "integer", is_nullable => 1,
-     versioned   => { since => '0.002' }
+   { data_type => "integer", is_nullable => 1,
+     versioned => { since => '0.002' }
    }
+ );
+
+For changes to column_info such as a change of data_type then the value of C<since> should be an arrayref of C<version => hashref> though a simple C<since> without the value hashref indicates the first version in which this column appeared:
+
+ __PACKAGE__->add_column(
+    "weight",
+    { data_type => "integer", is_nullable => 1,
+        versioned => {
+            since => [
+                '0.002',                 # column first appeared at 0.002
+                '0.4' => {               # change datatype at 0.4
+                    data_type => "numeric",
+                    size      => [10,2],
+                }
+                '0.401' => {             # add constraint+default at 0.401
+                    is_nullable   => 0,
+                    default_value => "0.0"
+                }
+            ]
+        }
+    }
+ );
+
+Note: if the Result containing the column includes a class-level C<since> then there is no need to add C<since> markers for columns created at the same version.
+
+An example for a relationship:
+
+ __PACKAGE__->belongs_to(
+    'bar', 'MyApp::Schema::Result::Bar',
+    'bars_id', { versioned => { since => '0.002' } },
  );
 
 =head2 until
@@ -161,7 +196,7 @@ For renaming a class:
      versioned => { since => '0.5, renamed_from => 'Foo' }
  });
 
-Or for renaming a column:
+When renaming a column we must use the extended form of C<since> as above where the value is an arrayref:
 
  __PACKAGE__->add_columns(
      "height",
@@ -169,9 +204,13 @@ Or for renaming a column:
      "width",
      {
        data_type => "integer",
-       versioned => { since => '0.002', renamed_from => 'height' }
+       versioned => { since => [ '0.002' => { renamed_from => 'height' } ] }
      },
  )
+
+=head2 Upgrade.pm
+
+For details on how to apply data modifications that might be required during an upgrade see L<DBIx::Class::Schema::Versioned::Inline::Upgrade>.
 
 =cut
 
@@ -303,11 +342,9 @@ sub upgrade_single_step {
     # translate current schema
 
     my $curr_tr = SQL::Translator->new(
-        no_comments => 1,
-        parser      => 'SQL::Translator::Parser::DBIx::Class',
-        parser_args => {
-            dbic_schema => $self,
-        },
+        no_comments   => 1,
+        parser        => 'SQL::Translator::Parser::DBIx::Class',
+        parser_args   => { dbic_schema => $self, },
         producer      => $sqlt_type,
         show_warnings => 1,
     ) or $self->throw_exception( SQL::Translator->error );
@@ -341,11 +378,9 @@ sub upgrade_single_step {
     $ENV{DBIC_NO_VERSION_CHECK} = $old_DBIC_NO_VERSION_CHECK;
 
     my $target_tr = SQL::Translator->new(
-        no_comments => 1,
-        parser      => 'SQL::Translator::Parser::DBIx::Class',
-        parser_args => {
-            dbic_schema => $target_schema,
-        },
+        no_comments   => 1,
+        parser        => 'SQL::Translator::Parser::DBIx::Class',
+        parser_args   => { dbic_schema => $target_schema, },
         producer      => $sqlt_type,
         show_warnings => 1,
     ) or $self->throw_exception( SQL::Translator->error );
@@ -372,7 +407,7 @@ sub upgrade_single_step {
                 foreach my $line (@diff) {
 
                     # drop comments and BEGIN/COMMIT
-                    next if $line =~ /(^--|BEGIN|COMMIT)/;
+                    next if $line =~ /(^--|BEGIN TRANSACTION|COMMIT)/;
                     $self->storage->dbh_do(
                         sub {
                             my ( $storage, $dbh ) = @_;
@@ -391,6 +426,7 @@ sub upgrade_single_step {
         carp "ERROR: $exception\n";
     }
     else {
+
         # set row in dbix_class_schema_versions table
         $self->_set_db_version( { version => $target_version } );
     }
@@ -423,6 +459,8 @@ sub versioned_schema {
         foreach my $column ( $source->columns ) {
 
             my $versioned = $source->column_info($column)->{versioned};
+
+            # remember: columns may contain multiple 'since' entries
 
             my $since = $versioned->{since};
             my $until = $versioned->{until};
@@ -458,8 +496,8 @@ sub versioned_schema {
                 delete $rels{$relation_name};
                 $source->_relationships( \%rels );
             };
-            $self->_since_until( $pversion, $since,
-                $until, $name, $sub, $source );
+            $self->_since_until( $pversion, $since, $until, $name, $sub,
+                $source );
         }
 
         # now check class-level since/until
