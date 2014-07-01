@@ -4,10 +4,8 @@ use Test::Roo::Role;
 requires 'connect_info';
 
 use Class::Unload;
-#use namespace::clean;
 use Test::Deep;
 use Test::Most;
-#use Data::Dumper::Concise;
 
 has database => (
     is => 'lazy',
@@ -19,16 +17,9 @@ has schema_version => (
     default => 0,
 );
 
-#sub unload_classes {
-#    #Class::Unload->unload('TestVersion::Schema::Result::Schema');
-#}
-
 after each_test => sub {
     my $self = shift;
     $self->clear_database;
-#    Class::Unload->unload('TestVersion::Schema::Result::Bar');
-#    Class::Unload->unload('TestVersion::Schema::Result::Foo');
-#    Class::Unload->unload('TestVersion::Schema::Result::Tree');
 };
 
 test 'deploy v0.001' => sub {
@@ -66,7 +57,7 @@ test 'deploy v0.001' => sub {
 
 };
 
-test 'deploy v0.001' => sub {
+test 'deploy v0.002' => sub {
     my $self = shift;
 
     no warnings 'redefine';
@@ -107,20 +98,16 @@ test 'deploy v0.001' => sub {
     );
 
 };
-1;
-__END__
 
-VERSION_0_003: {
-
-    use_ok 'TestVersion::Schema';
+test 'deploy v0.003' => sub {
+    my $self = shift;
 
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.003' };
-    use warnings 'redefine';
 
-    $schema = TestVersion::Schema->connect($self->get_conn_info);
+    my $schema = TestVersion::Schema->connect($self->connect_info);
 
-    @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.003', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -152,21 +139,17 @@ VERSION_0_003: {
         [qw(age bars_id trees_id width)],
         "Tree columns OK"
     );
+};
 
-    unload_classes();
-}
-
-VERSION_0_3: {
-
-    use_ok 'TestVersion::Schema';
+test 'deploy v0.3' => sub {
+    my $self = shift;
 
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.3' };
-    use warnings 'redefine';
 
-    $schema = TestVersion::Schema->connect($self->get_conn_info);
+    my $schema = TestVersion::Schema->connect($self->connect_info);
 
-    @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.3', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -197,21 +180,17 @@ VERSION_0_3: {
         [qw(age bars_id trees_id width)],
         "Tree columns OK"
     );
+};
 
-    unload_classes();
-}
-
-VERSION_0_4: {
-
-    use_ok 'TestVersion::Schema';
+test 'deploy v0.4' => sub {
+    my $self = shift;
 
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.4' };
-    use warnings 'redefine';
 
-    $schema = TestVersion::Schema->connect($self->get_conn_info);
+    my $schema = TestVersion::Schema->connect($self->connect_info);
 
-    @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3', '0.4' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3', '0.4' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.4', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -242,8 +221,6 @@ VERSION_0_4: {
         [qw(age bars_id trees_id width)],
         "Tree columns OK"
     );
-
-    unload_classes();
-}
+};
 
 1;
