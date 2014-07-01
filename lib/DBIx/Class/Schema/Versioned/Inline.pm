@@ -142,18 +142,25 @@ Using 'since' in a column or relationship definition denotes the version at whic
    }
  );
 
-For changes to column_info such as a change of data_type then the value of C<since> should be an arrayref of C<version => hashref> though a simple C<since> without the value hashref indicates the first version in which this column appeared:
+For changes to column_info such as a change of data_type then the value of C<since> should be an arrayref of C<< version => hashref >>. A simple C<since> without the hashref indicates the first version in which this column appeared:
 
  __PACKAGE__->add_column(
     "weight",
     { data_type => "integer", is_nullable => 1,
         versioned => {
             since => [
+
+                # TODO - fixup this example
+
+                {
                 '0.002',                 # column first appeared at 0.002
-                '0.4' => {               # change datatype at 0.4
-                    data_type => "numeric",
-                    size      => [10,2],
-                }
+                {
+                    '0.4' => {               # change datatype at 0.4
+                        data_type => "numeric",
+                        size      => [10,2],
+                    }
+                },
+
                 '0.401' => {             # add constraint+default at 0.401
                     is_nullable   => 0,
                     default_value => "0.0"
@@ -197,6 +204,8 @@ For renaming a class:
  });
 
 When renaming a column we must use the extended form of C<since> as above where the value is an arrayref:
+
+    # TODO - fixup this example
 
  __PACKAGE__->add_columns(
      "height",
@@ -456,25 +465,102 @@ sub versioned_schema {
         # check columns before deciding on class-level since/until to make sure
         # we don't miss any versions
 
-        foreach my $column ( $source->columns ) {
+      COLUMN: foreach my $column ( $source->columns ) {
 
-            my $versioned = $source->column_info($column)->{versioned};
-
-            # remember: columns may contain multiple 'since' entries
+            my $column_info = $source->column_info($column);
+            my $versioned   = $column_info->{versioned};
 
             my $since = $versioned->{since};
             my $until = $versioned->{until};
 
-            my $name = "$source_name column $column";
-            my $sub  = sub {
-                my $source = shift;
-                $source->remove_column($column);
-            };
-            $self->_since_until( $pversion, $since, $until, $name, $sub,
-                $source );
+            # until is always a simple case so handle before since as
+            # we may be able to ignore since completely
+
+            if ($until) {
+
+                # stash the discovered version number
+                push @schema_versions, $until;
+
+                if ( $pversion > version->parse($until) ) {
+                    $source->remove_column($column);
+                    next COLUMN;
+                }
+            }
+
+            if ($since) {
+                if ( ref($since) eq '' ) {
+
+                    # a simple since => version
+
+                    # stash the discovered version number
+                    push @schema_versions, $since;
+
+                    if ( $pversion < version->parse($since) ) {
+
+                        # column not yet valid
+
+                        $source->remove_column($column);
+                        next COLUMN;
+                    }
+                }
+                elsif ( ref($since) eq 'HASH' ) {
+
+                    # since => { version => {}, ... }
+
+                    # stash the discovered version numbers
+                    push @schema_versions, keys %$since;
+
+                    # now spin through our since entries
+                    # in ascending order of version number
+
+                  KEY: foreach my $key (
+                        sort { version->parse($a) <=> version->parse($b) }
+                        keys %$since
+                      )
+                    {
+
+                        my $value = $since->{$key};
+
+                        if ( ref($value) eq '' && $value eq '' ) {
+
+                            # a simple "since" starting version
+
+                            if ( $pversion < version->parse($key) ) {
+
+                                # column not yet valid
+
+                                $source->remove_column($column);
+                                next COLUMN;
+                            }
+                        }
+                        elsif ( ref($value) eq 'HASH' ) {
+
+                            # we might have some column attributes to add/change
+
+                            if ( $pversion < version->parse($key) ) {
+
+                                # not valid yet
+
+                                last KEY;
+                            }
+
+                            carp Dumper($value);
+                            next COLUMN; #TEMP
+                        }
+                        else {
+                            croak qq(Invalid "since" for column $column)
+                              . qq( in $source_name);
+                        }
+                    }
+                }
+                else {
+                    croak
+                      qq(Invalid "since" for column $column in $source_name);
+                }
+            }
         }
 
-        # now check relations
+        # check relations
 
         foreach my $relation_name ( $source->relationships ) {
 
@@ -500,7 +586,7 @@ sub versioned_schema {
                 $source );
         }
 
-        # now check class-level since/until
+        # check class-level since/until
 
         my ( $since, $until );
 

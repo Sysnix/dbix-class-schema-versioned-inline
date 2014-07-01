@@ -9,7 +9,14 @@ __PACKAGE__->add_columns(
     "bars_id",
     { data_type => 'integer', is_auto_increment => 1, },
     "age",
-    { data_type => "integer", is_nullable => 1 },
+    { data_type => "integer", is_nullable => 1,
+      versioned => {
+        since => {
+          '0.003' => '',
+          '0.004' => { is_nullable => 0, default_value => 18 },
+        }
+      }
+    },
     "height",
     {
         data_type   => "integer",

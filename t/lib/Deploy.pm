@@ -81,14 +81,14 @@ test 'deploy v0.002' => sub {
     # columns
     my $bar = $schema->source('Bar');
     cmp_deeply(
-        [ sort $bar->columns ],
-        [qw(age bars_id weight)],
+        [ $bar->columns ],
+        bag(qw(bars_id weight)),
         "Bar columns OK"
     );
     my $foo = $schema->source('Foo');
     cmp_deeply(
-        [ sort $foo->columns ],
-        [qw(age bars_id foos_id width)],
+        [ $foo->columns ],
+        bag(qw(age bars_id foos_id width)),
         "Foo columns OK"
     );
 

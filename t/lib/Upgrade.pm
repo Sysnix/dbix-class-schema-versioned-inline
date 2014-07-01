@@ -97,7 +97,7 @@ test 'test 0.002' => sub {
     my $bar = $schema->source('Bar');
     cmp_bag(
         [ $bar->columns ],
-        [qw(age bars_id weight)],
+        [qw(bars_id weight)],
         "Bar columns OK"
     );
 };
