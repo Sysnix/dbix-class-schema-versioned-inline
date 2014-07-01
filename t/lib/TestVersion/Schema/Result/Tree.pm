@@ -24,6 +24,6 @@ __PACKAGE__->belongs_to(
     'bars_id',
 );
 
-__PACKAGE__->resultset_attributes({ extra => { since => '0.003', renamed_from => 'Foo' }});
+__PACKAGE__->resultset_attributes({ versioned => { since => '0.003', renamed_from => 'Foo' }});
 
 1;

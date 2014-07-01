@@ -34,11 +34,13 @@ our $VERSION = '0.001';
    "foos_id",
    { data_type => 'integer', is_auto_increment => 1 },
    "age",
-   { data_type => "integer", is_nullable => 1, extra => { since => '0.002' } },
+   { data_type => "integer", is_nullable => 1,
+     versioned => { since => '0.002' } },
    "height",
    { data_type => "integer", is_nullable => 1 },
    "bars_id",
-   { data_type => 'integer', is_foreign_key => 1, is_nullable => 0, extra => { since => '0.002' } },
+   { data_type => 'integer', is_foreign_key => 1, is_nullable => 0,
+     versioned => { since => '0.002' } },
  );
 
  __PACKAGE__->set_primary_key('foos_id');
@@ -47,10 +49,10 @@ our $VERSION = '0.001';
    'Bar',
    'TestVersion::Schema::Result::Bar',
    'bars_id',
-   { extra => { since => '0.002' }},
+   { versioned => { since => '0.002' }},
  );
 
- __PACKAGE__->resultset_attributes({ extra => { until => '0.002' }});
+ __PACKAGE__->resultset_attributes({ versioned => { until => '0.002' }});
 
  ...
 
@@ -66,9 +68,11 @@ our $VERSION = '0.001';
    "age",
    { data_type => "integer", is_nullable => 1 },
    "height",
-   { data_type => "integer", is_nullable => 1, extra => { until => '0.003' } },
+   { data_type => "integer", is_nullable => 1,
+     versioned => { until => '0.003' } },
    "weight",
-   { data_type => "integer", is_nullable => 1, extra => { until => '0.3' } },
+   { data_type => "integer", is_nullable => 1,
+     versioned => { until => '0.3' } },
  );
 
  __PACKAGE__->set_primary_key('bars_id');
@@ -77,20 +81,20 @@ our $VERSION = '0.001';
    'Foo',
    'TestVersion::Schema::Result::Foo',
    'bars_id',
-   { extra => { until => '0.002' }},
+   { versioned => { until => '0.002' }},
  );
 
- __PACKAGE__->resultset_attributes({ extra => { since => '0.002' }});
+ __PACKAGE__->resultset_attributes({ versioned => { since => '0.002' }});
 
 =head1 DESCRIPTION
 
-This module extends L<DBIx::Class::Schema::Versioned> using simple 'since' and 'until' markers within result classes to specify the schema version at which classes and columns were introduced or removed. Column since/until definitions are included as part of 'extra' info in add_column(s).
+This module extends L<DBIx::Class::Schema::Versioned> using simple 'since' and 'until' markers within result classes to specify the schema version at which classes and columns were introduced or removed. Column since/until definitions are included as part of 'versioned' info in add_column(s).
 
 =head2 since
 
 When a class is added to a schema at a specific schema version version then a 'since' attribute must be added to the class which returns the version at which the class was added. For example:
 
- __PACKAGE__->resultset_attributes({ extra => { since => '0.002' }});
+ __PACKAGE__->resultset_attributes({ versioned => { since => '0.002' }});
 
 It is not necessary to add this to the initial version of a class since any class without this atribute is assumed to have existed for ever.
 
@@ -100,7 +104,7 @@ Using 'since' in a column or relationship definition denotes the version at whic
 
 When used as a class attribute this should be the final schema version at which the class is to be used. The underlying database table will be removed when the schema is upgraded to a higher version. Example definition:
 
- __PACKAGE__->resultset_attributes({ extra => { since => '0.3' }});
+ __PACKAGE__->resultset_attributes({ versioned => { since => '0.3' }});
 
 Using 'until' in a column or relationship definition will cause removal of the column/relation from the table when the schema is upgraded past this version.
 
@@ -111,22 +115,22 @@ For renaming a class:
  package MyApp::Schema::Result::Foo;
 
  __PACKAGE__->table('foos');
- __PACKAGE__->resultset_attributes({ extra => { until => '0.4 }});
+ __PACKAGE__->resultset_attributes({ versioned => { until => '0.4 }});
 
  package MyApp::Schema::Result::Fooey;
 
  __PACKAGE__->table('fooeys');
  __PACKAGE__->resultset_attributes({
-     extra => { since => '0.5, renamed_from => 'Foo' }
+     versioned => { since => '0.5, renamed_from => 'Foo' }
  });
 
 Or for renaming a column:
 
  __PACKAGE__->add_columns(
      "height",
-     { data_type => "integer", extra => { until => '0.001' } },
+     { data_type => "integer", versioned => { until => '0.001' } },
      "width",
-     { data_type => "integer", extra => {
+     { data_type => "integer", versioned => {
          since => '0.002', renamed_from => 'height' }
      },
  )
@@ -377,18 +381,17 @@ sub versioned_schema {
 
         foreach my $column ( $source->columns ) {
 
-            my $extra = $source->column_info($column)->{extra};
+            my $versioned = $source->column_info($column)->{versioned};
 
-            my $since = $extra->{since};
-            my $until = $extra->{until};
+            my $since = $versioned->{since};
+            my $until = $versioned->{until};
 
             my $name = "$source_name column $column";
             my $sub  = sub {
                 my $source = shift;
                 $source->remove_column($column);
             };
-            $self->_since_until( $pversion, $extra->{since},
-                $extra->{until}, $name, $sub, $source );
+            $self->_since_until( $pversion, $since, $until, $name, $sub, $source );
         }
 
         # now check relations
@@ -399,12 +402,12 @@ sub versioned_schema {
 
             next unless defined $attrs;
 
-            my $extra = $attrs->{extra};
+            my $versioned = $attrs->{versioned};
 
-            next unless defined $extra;
+            next unless defined $versioned;
 
-            my $since = $extra->{since};
-            my $until = $extra->{until};
+            my $since = $versioned->{since};
+            my $until = $versioned->{until};
 
             my $name = "$source_name relationship $relation_name";
             my $sub  = sub {
@@ -413,19 +416,19 @@ sub versioned_schema {
                 delete $rels{$relation_name};
                 $source->_relationships( \%rels );
             };
-            $self->_since_until( $pversion, $extra->{since},
-                $extra->{until}, $name, $sub, $source );
+            $self->_since_until( $pversion, $since,
+                $until, $name, $sub, $source );
         }
 
         # now check class-level since/until
 
         my ( $since, $until );
 
-        my $extra = $source->resultset_attributes->{extra};
+        my $versioned = $source->resultset_attributes->{versioned};
 
-        if ( defined $extra ) {
-            $since = $extra->{since} if defined $extra->{since};
-            $until = $extra->{until} if defined $extra->{until};
+        if ( defined $versioned ) {
+            $since = $versioned->{since} if defined $versioned->{since};
+            $until = $versioned->{until} if defined $versioned->{until};
         }
 
         my $name = $source_name;
@@ -433,7 +436,7 @@ sub versioned_schema {
             my $class = shift;
             $class->unregister_source($source_name);
         };
-        $self->_since_until( $pversion, $extra->{since}, $extra->{until},
+        $self->_since_until( $pversion, $since, $until,
             $name, $sub, $self );
     }
 }
