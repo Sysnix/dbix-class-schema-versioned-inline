@@ -361,7 +361,9 @@ sub upgrade_single_step {
     }
 
     unless ( $db_version eq $self->get_db_version ) {
-        $self->throw_exception("Attempt to upgrade DB from $db_version but current version is " . $self->get_db_version);
+        $self->throw_exception(
+            "Attempt to upgrade DB from $db_version but current version is "
+              . $self->get_db_version );
     }
 
     my $sqlt_type = $self->storage->sqlt_type;
@@ -459,7 +461,7 @@ sub upgrade_single_step {
     };
 
     if ( defined $exception ) {
-        $self->throw_exception( $exception );
+        $self->throw_exception($exception);
     }
     else {
 
@@ -492,7 +494,7 @@ sub versioned_schema {
         # check columns before deciding on class-level since/until to make sure
         # we don't miss any versions
 
-      COLUMN: foreach my $column ( $source->columns ) {
+        foreach my $column ( $source->columns ) {
 
             my $column_info = $source->column_info($column);
             my $versioned   = $column_info->{versioned};
@@ -509,32 +511,35 @@ sub versioned_schema {
                 $source->remove_column($column);
             };
             $self->_since_until( $pversion, $since, $until, $name, $sub,
-                $source);
+                $source );
 
             # handle changes
 
             if ($changes) {
-                croak "changes not a hasref in $name"
-                   unless ref($changes) eq 'HASH';
+                $self->throw_exception("changes not a hasref in $name")
+                  unless ref($changes) eq 'HASH';
 
                 foreach my $change_version ( sort _byversion keys %$changes ) {
 
-                    croak "Bad changes version number $change_version in $name"
-                        unless version::is_lax($change_version);
+                    $self->throw_exception(
+                        "Bad changes version number $change_version in $name")
+                      unless version::is_lax($change_version);
 
                     my $change_value = $changes->{$change_version};
 
-                    croak "not a hasref in $name changes $change_version"
-                        unless ref($change_value) eq 'HASH';
+                    $self->throw_exception(
+                        "not a hasref in $name changes $change_version")
+                      unless ref($change_value) eq 'HASH';
 
                     # stash the version
                     push @schema_versions, $change_version;
 
                     if ( $pversion >= version->parse($change_version) ) {
                         unless ( $source->remove_column($column)
-                          && $source->add_column($column => $change_value) ) {
-                            croak "Failed to apply change $change_version"
-                              . " to $name";
+                            && $source->add_column( $column => $change_value ) )
+                        {
+                            $self->throw_exception(
+                                "Failed change $change_version for $name" );
                         }
                     }
                 }
@@ -590,12 +595,14 @@ sub versioned_schema {
 sub _since_until {
     my ( $self, $pversion, $since, $until, $name, $sub, $thing ) = @_;
 
-    if ( $since ) {
-        croak "Bad since $since for $name" unless version::is_lax($since);
+    if ($since) {
+        $self->throw_exception("Bad since $since for $name")
+          unless version::is_lax($since);
         push @schema_versions, $since;
     }
-    if ( $until ) {
-        croak "Bad until $until for $name" unless version::is_lax($until);
+    if ($until) {
+        $self->throw_exception("Bad until $until for $name")
+          unless version::is_lax($until);
         push @schema_versions, $until;
     }
 

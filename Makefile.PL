@@ -30,4 +30,10 @@ WriteMakefile(
     },
     dist => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'DBIx-Class-Schema-Versioned-Inline-*' },
+    META_MERGE => {
+        resources => {
+            repository => 'https://github.com/Sysnix/dbix-class-schema-versioned-inline.git',
+            bugtracker => 'https://github.com/Sysnix/dbix-class-schema-versioned-inline/issues',
+        },
+    },
 );

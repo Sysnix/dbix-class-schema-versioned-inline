@@ -17,14 +17,7 @@ has database => (
 
 after each_test => sub {
     my $self = shift;
-    #Class::Unload->unload('TestVersion::Schema');
-    #Class::Unload->unload('TestVersion::Schema::Result::Bar');
-    #Class::Unload->unload('TestVersion::Schema::Result::Foo');
-    #Class::Unload->unload('TestVersion::Schema::Result::Tree');
     Class::Unload->unload('Test::Schema');
-    #Class::Unload->unload('Test::Schema::Result::Bar');
-    #Class::Unload->unload('Test::Schema::Result::Foo');
-    #Class::Unload->unload('Test::Schema::Result::Tree');
 };
 
 test 'deploy 0.001' => sub {

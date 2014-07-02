@@ -2,19 +2,22 @@ package Deploy;
 
 $ENV{DBIC_NO_VERSION_CHECK} = 1;
 
+use Data::Dumper::Concise;
 use Test::Roo::Role;
 use Test::Most;
 
 requires 'connect_info';
 
 has database => (
-    is => 'lazy',
+    is      => 'lazy',
     clearer => 1,
 );
 
 after each_test => sub {
     my $self = shift;
     $self->clear_database;
+
+    #Class::Unload->unload('TestVersion::Schema::Result::Foo');
 };
 
 test 'deploy v0.001' => sub {
@@ -23,7 +26,7 @@ test 'deploy v0.001' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.001' };
 
-    my $schema = TestVersion::Schema->connect($self->connect_info);
+    my $schema = TestVersion::Schema->connect( $self->connect_info );
 
     my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.4' );
 
@@ -45,9 +48,21 @@ test 'deploy v0.001' => sub {
 
     # columns
     my $foo = $schema->source('Foo');
-    cmp_deeply( [ $foo->columns ], bag(qw(foos_id height)),
-        "Foo columns OK" );
+    cmp_deeply( [ $foo->columns ], bag(qw(foos_id height)), "Foo columns OK" );
 
+    # column info
+    my $foo_columns_expect = {
+        foos_id => {
+            data_type         => 'integer',
+            is_auto_increment => 1
+        },
+        height => {
+            data_type   => "integer",
+            is_nullable => 1,
+            versioned   => { until => '0.002' }
+        }
+    };
+    cmp_deeply( $foo->_columns, $foo_columns_expect, "Foo column info OK" );
 };
 
 test 'deploy v0.002' => sub {
@@ -56,7 +71,7 @@ test 'deploy v0.002' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.002' };
 
-    my $schema = TestVersion::Schema->connect($self->connect_info);
+    my $schema = TestVersion::Schema->connect( $self->connect_info );
 
     my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.4' );
 
@@ -78,11 +93,7 @@ test 'deploy v0.002' => sub {
 
     # columns
     my $bar = $schema->source('Bar');
-    cmp_deeply(
-        [ $bar->columns ],
-        bag(qw(bars_id weight)),
-        "Bar columns OK"
-    );
+    cmp_deeply( [ $bar->columns ], bag(qw(bars_id weight)), "Bar columns OK" );
     my $foo = $schema->source('Foo');
     cmp_deeply(
         [ $foo->columns ],
@@ -90,6 +101,84 @@ test 'deploy v0.002' => sub {
         "Foo columns OK"
     );
 
+    # column info & relations
+    my $bar_columns = {
+        bars_id => {
+            data_type         => "integer",
+            is_auto_increment => 1
+        },
+        weight => {
+            data_type   => "integer",
+            is_nullable => 1,
+            versioned   => {
+                until => "0.4"
+            }
+        }
+    };
+    my $foo_columns = {
+        foos_id => {
+            data_type         => 'integer',
+            is_auto_increment => 1
+        },
+        age => {
+            data_type   => "integer",
+            is_nullable => 1,
+            versioned   => { since => '0.002' }
+        },
+        width => {
+            data_type   => "integer",
+            is_nullable => 1,
+            versioned   => { since => '0.002', renamed_from => 'height' }
+        },
+        bars_id => {
+            data_type      => 'integer',
+            is_foreign_key => 1,
+            is_nullable    => 0,
+            versioned      => { since => '0.002' }
+        }
+    };
+    my $bar_relations = {
+        foos => {
+            attrs => {
+                accessor       => "multi",
+                cascade_copy   => 1,
+                cascade_delete => 1,
+                join_type      => "LEFT",
+                versioned      => {
+                    until => "0.003"
+                }
+            },
+            class => "TestVersion::Schema::Result::Foo",
+            cond  => {
+                "foreign.foos_id" => "self.bars_id"
+            },
+            source => "TestVersion::Schema::Result::Foo"
+        }
+    };
+    my $foo_relations = {
+        bar => {
+            attrs => {
+                accessor   => "single",
+                fk_columns => {
+                    bars_id => 1
+                },
+                is_foreign_key_constraint => 1,
+                undef_on_null_fk          => 1,
+                versioned                 => {
+                    since => "0.002"
+                }
+            },
+            class => "TestVersion::Schema::Result::Bar",
+            cond  => {
+                "foreign.bars_id" => "self.bars_id"
+            },
+            source => "TestVersion::Schema::Result::Bar"
+        }
+    };
+    cmp_deeply( $bar->_columns,       $bar_columns,   "Bar column info OK" );
+    cmp_deeply( $foo->_columns,       $foo_columns,   "Foo column info OK" );
+    cmp_deeply( $bar->_relationships, $bar_relations, "Bar relations OK" );
+    cmp_deeply( $foo->_relationships, $foo_relations, "Foo relations OK" );
 };
 
 test 'deploy v0.003' => sub {
@@ -98,7 +187,7 @@ test 'deploy v0.003' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.003' };
 
-    my $schema = TestVersion::Schema->connect($self->connect_info);
+    my $schema = TestVersion::Schema->connect( $self->connect_info );
 
     my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.4' );
 
@@ -132,6 +221,88 @@ test 'deploy v0.003' => sub {
         bag(qw(age bars_id trees_id width)),
         "Tree columns OK"
     );
+
+    # column info & relations
+    my $bar_columns = {
+        bars_id => {
+            data_type         => "integer",
+            is_auto_increment => 1
+        },
+        age => {
+            data_type   => "integer",
+            is_nullable => 1,
+            versioned   => {
+                since   => '0.003',
+                changes => {
+                    '0.004' => {
+                        data_type     => "integer",
+                        is_nullable   => 0,
+                        default_value => 18
+                    },
+                }
+            }
+        },
+        height => {
+            data_type   => "integer",
+            is_nullable => 1,
+            versioned   => {
+                since => "0.003"
+            }
+        },
+        weight => {
+            data_type   => "integer",
+            is_nullable => 1,
+            versioned   => {
+                until => "0.4"
+            }
+        }
+    };
+    my $tree_columns = {
+        "trees_id" => { data_type => 'integer', is_auto_increment => 1 },
+        "age"      => { data_type => "integer", is_nullable       => 1 },
+        "width"    => { data_type => "integer", is_nullable       => 1 },
+        "bars_id" =>
+            { data_type => 'integer', is_foreign_key => 1, is_nullable => 0 },
+    };
+    my $bar_relations = {
+        trees => {
+            attrs => {
+                accessor       => "multi",
+                cascade_copy   => 1,
+                cascade_delete => 1,
+                join_type      => "LEFT",
+                versioned      => {
+                    since => "0.003"
+                }
+            },
+            class => "TestVersion::Schema::Result::Tree",
+            cond  => {
+                "foreign.trees_id" => "self.bars_id"
+            },
+            source => "TestVersion::Schema::Result::Tree"
+        }
+    };
+    my $tree_relations = {
+        bar => {
+            attrs => {
+                accessor   => "single",
+                fk_columns => {
+                    bars_id => 1
+                },
+                is_foreign_key_constraint => 1,
+                undef_on_null_fk          => 1,
+            },
+            class => "TestVersion::Schema::Result::Bar",
+            cond  => {
+                "foreign.bars_id" => "self.bars_id"
+            },
+            source => "TestVersion::Schema::Result::Bar"
+        }
+    };
+    cmp_deeply( $bar->_columns,       $bar_columns,   "Bar column info OK" );
+    cmp_deeply( $tree->_columns,       $tree_columns,   "Tree column info OK" );
+    cmp_deeply( $bar->_relationships, $bar_relations, "Bar relations OK" );
+    cmp_deeply( $tree->_relationships, $tree_relations, "Tree relations OK" );
 };
 
 test 'deploy v0.4' => sub {
@@ -140,7 +311,7 @@ test 'deploy v0.4' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.4' };
 
-    my $schema = TestVersion::Schema->connect($self->connect_info);
+    my $schema = TestVersion::Schema->connect( $self->connect_info );
 
     my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.4' );
 
@@ -173,6 +344,72 @@ test 'deploy v0.4' => sub {
         bag(qw(age bars_id trees_id width)),
         "Tree columns OK"
     );
+
+    # column info & relations
+    my $bar_columns = {
+        bars_id => {
+            data_type         => "integer",
+            is_auto_increment => 1
+        },
+        age => {
+            data_type     => "integer",
+            is_nullable   => 0,
+            default_value => 18
+        },
+        height => {
+            data_type   => "integer",
+            is_nullable => 1,
+            versioned   => {
+                since => "0.003"
+            }
+        },
+    };
+    my $tree_columns = {
+        "trees_id" => { data_type => 'integer', is_auto_increment => 1 },
+        "age"      => { data_type => "integer", is_nullable       => 1 },
+        "width"    => { data_type => "integer", is_nullable       => 1 },
+        "bars_id" =>
+            { data_type => 'integer', is_foreign_key => 1, is_nullable => 0 },
+    };
+    my $bar_relations = {
+        trees => {
+            attrs => {
+                accessor       => "multi",
+                cascade_copy   => 1,
+                cascade_delete => 1,
+                join_type      => "LEFT",
+                versioned      => {
+                    since => "0.003"
+                }
+            },
+            class => "TestVersion::Schema::Result::Tree",
+            cond  => {
+                "foreign.trees_id" => "self.bars_id"
+            },
+            source => "TestVersion::Schema::Result::Tree"
+        }
+    };
+    my $tree_relations = {
+        bar => {
+            attrs => {
+                accessor   => "single",
+                fk_columns => {
+                    bars_id => 1
+                },
+                is_foreign_key_constraint => 1,
+                undef_on_null_fk          => 1,
+            },
+            class => "TestVersion::Schema::Result::Bar",
+            cond  => {
+                "foreign.bars_id" => "self.bars_id"
+            },
+            source => "TestVersion::Schema::Result::Bar"
+        }
+    };
+    cmp_deeply( $bar->_columns,       $bar_columns,   "Bar column info OK" );
+    cmp_deeply( $tree->_columns,       $tree_columns,   "Tree column info OK" );
+    cmp_deeply( $bar->_relationships, $bar_relations, "Bar relations OK" );
+    cmp_deeply( $tree->_relationships, $tree_relations, "Tree relations OK" );
 };
 
 1;
