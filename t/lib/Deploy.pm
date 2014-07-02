@@ -25,7 +25,7 @@ test 'deploy v0.001' => sub {
 
     my $schema = TestVersion::Schema->connect($self->connect_info);
 
-    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.4' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.001', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -41,14 +41,12 @@ test 'deploy v0.001' => sub {
         . join( " ", @versions ) );
 
     # tables
-    cmp_deeply( [ $schema->sources ], [qw(Foo)], "class Foo only" );
+    cmp_deeply( [ $schema->sources ], bag(qw(Foo)), "class Foo only" );
 
     # columns
     my $foo = $schema->source('Foo');
-    cmp_deeply( [ sort $foo->columns ], [qw(foos_id height)],
-        "Foo columns OK" )
-      || diag "got: "
-        . join( " ", $foo->columns );
+    cmp_deeply( [ $foo->columns ], bag(qw(foos_id height)),
+        "Foo columns OK" );
 
 };
 
@@ -60,7 +58,7 @@ test 'deploy v0.002' => sub {
 
     my $schema = TestVersion::Schema->connect($self->connect_info);
 
-    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.4' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.002', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -102,7 +100,7 @@ test 'deploy v0.003' => sub {
 
     my $schema = TestVersion::Schema->connect($self->connect_info);
 
-    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.4' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.003', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -124,55 +122,14 @@ test 'deploy v0.003' => sub {
     # columns
     my $bar = $schema->source('Bar');
     cmp_deeply(
-        [ sort $bar->columns ],
-        [qw(age bars_id height weight)],
+        [ $bar->columns ],
+        bag(qw(age bars_id height weight)),
         "Bar columns OK"
     );
     my $tree = $schema->source('Tree');
     cmp_deeply(
-        [ sort $tree->columns ],
-        [qw(age bars_id trees_id width)],
-        "Tree columns OK"
-    );
-};
-
-test 'deploy v0.3' => sub {
-    my $self = shift;
-
-    no warnings 'redefine';
-    local *DBIx::Class::Schema::schema_version = sub { '0.3' };
-
-    my $schema = TestVersion::Schema->connect($self->connect_info);
-
-    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3' );
-
-    cmp_ok( $schema->schema_version, 'eq', '0.3', "Check schema version" );
-    cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
-
-    lives_ok( sub { $schema->deploy }, "deploy schema" );
-    cmp_ok( $schema->get_db_version, 'eq', '0.3', "Check db version" );
-
-    cmp_deeply( [ $schema->ordered_schema_versions ],
-        \@versions, "Check we found all expected versions" )
-      || (diag "got: "
-        . join( " ", $schema->ordered_schema_versions )
-        . "\nexpect: "
-        . join( " ", @versions ) );
-
-    # tables
-    cmp_deeply( [ $schema->sources ], bag(qw(Bar Tree)), "Bar and Tree" );
-
-    # columns
-    my $bar = $schema->source('Bar');
-    cmp_deeply(
-        [ sort $bar->columns ],
-        [qw(age bars_id height weight)],
-        "Bar columns OK"
-    );
-    my $tree = $schema->source('Tree');
-    cmp_deeply(
-        [ sort $tree->columns ],
-        [qw(age bars_id trees_id width)],
+        [ $tree->columns ],
+        bag(qw(age bars_id trees_id width)),
         "Tree columns OK"
     );
 };
@@ -185,7 +142,7 @@ test 'deploy v0.4' => sub {
 
     my $schema = TestVersion::Schema->connect($self->connect_info);
 
-    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.3', '0.4' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.4' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.4', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -206,14 +163,14 @@ test 'deploy v0.4' => sub {
     # columns
     my $bar = $schema->source('Bar');
     cmp_deeply(
-        [ sort $bar->columns ],
-        [qw(age bars_id height)],
+        [ $bar->columns ],
+        bag(qw(age bars_id height)),
         "Bar columns OK"
     );
     my $tree = $schema->source('Tree');
     cmp_deeply(
-        [ sort $tree->columns ],
-        [qw(age bars_id trees_id width)],
+        [ $tree->columns ],
+        bag(qw(age bars_id trees_id width)),
         "Tree columns OK"
     );
 };

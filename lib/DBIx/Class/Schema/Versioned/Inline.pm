@@ -31,19 +31,19 @@ our $VERSION = '0.001';
  __PACKAGE__->table('bars');
 
  __PACKAGE__->add_columns(
-    "bars_id",
-    { data_type => 'integer', is_auto_increment => 1, },
-    "age",
-    { data_type => "integer", is_nullable => 1 },
-    "height",
-    {
-      data_type   => "integer", is_nullable => 1,
-      versioned   => { since => '0.003' }
+    "bars_id" => {
+        data_type => 'integer', is_auto_increment => 1
     },
-    "weight",
-    {
-      data_type   => "integer", is_nullable => 1,
-      versioned   => { until => '0.3' }
+    "age" => {
+        data_type => "integer", is_nullable => 1
+    },
+    "height" => {
+      data_type => "integer", is_nullable => 1,
+      versioned => { since => '0.003' }
+    },
+    "weight" => {
+      data_type => "integer", is_nullable => 1,
+      versioned => { until => '0.3' }
     },
  );
 
@@ -51,7 +51,7 @@ our $VERSION = '0.001';
 
  __PACKAGE__->has_many(
     'foos', 'TestVersion::Schema::Result::Foo',
-    'foos_id', { versioned => { until => '0.002' } },
+    'foos_id', { versioned => { until => '0.003' } },
  );
 
  __PACKAGE__->resultset_attributes( { versioned => { since => '0.002' } } );
@@ -65,43 +65,42 @@ our $VERSION = '0.001';
  __PACKAGE__->table('foos');
 
  __PACKAGE__->add_columns(
-    "foos_id",
-    { data_type => 'integer', is_auto_increment => 1 },
-    "age",
-    {
-      data_type => "integer", is_nullable => 1,
-      versioned   => { since => '0.002' }
+    "foos_id" => {
+        data_type => 'integer', is_auto_increment => 1
     },
-    "height",
-    {
-     data_type => "integer", is_nullable => 1,
-     versioned => { until => '0.001' }
+    "age" => {
+        data_type => "integer", is_nullable => 1,
+        versioned => { since => '0.002' }
     },
-    "width",
-    {
-      data_type => "integer", is_nullable => 1,
-      versioned => {
-        since => [
-          '0.002' => { renamed_from => 'height' },
-          '0.3    => { is_nullable  => 0, default_value => 0 } },
-        ],
-      }
+    "height" => {
+        data_type => "integer", is_nullable => 1,
+        versioned => { until => '0.002' }
     },
-    "bars_id",
-    {
-      data_type => 'integer', is_foreign_key => 1, is_nullable => 0,
-      versioned => { since => '0.002' }
+    "width" => {
+        data_type => "integer", is_nullable => 1,
+        versioned => {
+            since   => '0.002', renamed_from => 'height',
+            changes => {
+                '0.0021' => { is_nullable => 0, default_value => 0 }
+            },
+        }
+    },
+    "bars_id" => {
+        data_type => 'integer', is_foreign_key => 1, is_nullable => 0,
+        versioned => { since => '0.002' }
     },
  );
 
  __PACKAGE__->set_primary_key('foos_id');
 
  __PACKAGE__->belongs_to(
-    'bar', 'TestVersion::Schema::Result::Bar',
-    'bars_id', { versioned => { since => '0.002' } },
+    'bar',
+    'TestVersion::Schema::Result::Bar',
+    'bars_id',
+    { versioned => { since => '0.002' } },
  );
 
- __PACKAGE__->resultset_attributes( { versioned => { until => '0.002' } } );
+ __PACKAGE__->resultset_attributes( { versioned => { until => '0.003' } } );
 
  ...
 
@@ -123,7 +122,7 @@ our $VERSION = '0.001';
 
 =head1 DESCRIPTION
 
-This module extends L<DBIx::Class::Schema::Versioned> using simple 'since' and 'until' markers within result classes to specify the schema version at which classes and columns were introduced or removed. Column since/until definitions are included as part of 'versioned' info in add_column(s).
+This module extends L<DBIx::Class::Schema::Versioned> using simple 'since' and 'until' tokens within result classes to specify the schema version at which classes and columns were introduced or removed. Column since/until definitions are included as part of 'versioned' info in add_column(s).
 
 =head2 since
 
@@ -136,86 +135,107 @@ It is not necessary to add this to the initial version of a class since any clas
 Using 'since' in a column or relationship definition denotes the version at which the column/relation was added. For example:
 
  __PACKAGE__->add_column(
-   "age",
-   { data_type => "integer", is_nullable => 1,
-     versioned => { since => '0.002' }
-   }
- );
-
-For changes to column_info such as a change of data_type then the value of C<since> should be an arrayref of C<< version => hashref >>. A simple C<since> without the hashref indicates the first version in which this column appeared:
-
- __PACKAGE__->add_column(
-    "weight",
-    { data_type => "integer", is_nullable => 1,
-        versioned => {
-            since => [
-
-                # TODO - fixup this example
-
-                {
-                '0.002',                 # column first appeared at 0.002
-                {
-                    '0.4' => {               # change datatype at 0.4
-                        data_type => "numeric",
-                        size      => [10,2],
-                    }
-                },
-
-                '0.401' => {             # add constraint+default at 0.401
-                    is_nullable   => 0,
-                    default_value => "0.0"
-                }
-            ]
-        }
+    "age" => {
+        data_type => "integer", is_nullable => 1,
+        versioned => { since => '0.002' }
     }
  );
 
+For changes to column_info such as a change of data_type see L</changes>.
+
 Note: if the Result containing the column includes a class-level C<since> then there is no need to add C<since> markers for columns created at the same version.
 
-An example for a relationship:
+Relationships are handled in the same way as columns:
 
  __PACKAGE__->belongs_to(
-    'bar', 'MyApp::Schema::Result::Bar',
-    'bars_id', { versioned => { since => '0.002' } },
+    'bar',
+    'MyApp::Schema::Result::Bar',
+    'bars_id',
+    { versioned => { since => '0.002' } },
  );
 
 =head2 until
 
-When used as a class attribute this should be the final schema version at which the class is to be used. The underlying database table will be removed when the schema is upgraded to a higher version. Example definition:
+When used as a class attribute this should be the schema version at which the class is to be removed. The underlying database table will be removed when the schema is upgraded to this version. Example definitions:
 
- __PACKAGE__->resultset_attributes({ versioned => { since => '0.3' }});
+ __PACKAGE__->resultset_attributes({ versioned => { until => '0.7' }});
 
-Using 'until' in a column or relationship definition will cause removal of the column/relation from the table when the schema is upgraded past this version.
+ __PACKAGE__->add_column(
+    "age" => {
+        data_type => "integer", is_nullable => 1,
+        versioned => { until => '0.5' }
+    }
+ );
+
+Using 'until' in a column or relationship definition will cause removal of the column/relation from the table when the schema is upgraded to this version.
 
 =head2 renamed_from
 
-For renaming a class:
+This is always used alongside 'since' in the renamed class/column and there must also be a corresponding 'until' on the old class/column.
+
+For example when renaming a class:
 
  package MyApp::Schema::Result::Foo;
 
  __PACKAGE__->table('foos');
- __PACKAGE__->resultset_attributes({ versioned => { until => '0.4 }});
+ __PACKAGE__->resultset_attributes({ versioned => { until => '0.5 }});
 
  package MyApp::Schema::Result::Fooey;
 
  __PACKAGE__->table('fooeys');
  __PACKAGE__->resultset_attributes({
-     versioned => { since => '0.5, renamed_from => 'Foo' }
+    versioned => { since => '0.5, renamed_from => 'Foo' }
  });
 
-When renaming a column we must use the extended form of C<since> as above where the value is an arrayref:
-
-    # TODO - fixup this example
+And when renaming a column:
 
  __PACKAGE__->add_columns(
-     "height",
-     { data_type => "integer", versioned => { until => '0.001' } },
-     "width",
-     {
-       data_type => "integer",
-       versioned => { since => [ '0.002' => { renamed_from => 'height' } ] }
-     },
- )
+    "height" => {
+        data_type => "integer",
+        versioned => { until => '0.002' }
+    },
+    "width" => {
+        data_type => "integer", is_nullable => 0,
+        versioned => { since => '0.002', renamed_from => 'height' }
+    },
+ );
+
+As can been seen in the example it is possible to modify column definitions at the same time as a rename but care should be taken to ensure that any data modification (such as ensuring there are no longer null values when is_nullable => 0 is introduced) must be handled via L</Upgrade.pm>.
+
+=head2 changes
+
+Column definition changes are handled using the C<changes> token. A hashref is created for each version where the column definition changes which details the new column definition in effect from that change revision. For example:
+
+ __PACKAGE__->add_columns(
+    "item_weight",
+    {
+        data_type => "integer", is_nullable => 1, default_value => 4,
+        versioned => { until => '0.001 },
+    },
+    "weight",
+    {
+        data_type => "integer", is_nullable => 1,
+        versioned => {
+            since        => '0.002',
+            renamed_from => 'item_weight',
+            changes => {
+                '0.4' => {
+                    data_type   => "numeric",
+                    size        => [10,2],
+                    is_nullable => 1,
+                }
+                '0.401' => {
+                    data_type   => "numeric",
+                    size        => [10,2],
+                    is_nullable => 0,
+                    default_value => "0.0",
+                }
+            }
+        }
+    }
+ );
+
+Note: the initial column definition should never be changed since that is the definition to be used from when the column is first created until the first change is effected.
 
 =head2 Upgrade.pm
 
@@ -288,6 +308,8 @@ Overloaded method. Returns an ordered list of schema versions. This is then used
 
 =cut
 
+sub _byversion { version->parse($a) <=> version->parse($b); }
+
 sub ordered_schema_versions {
     my $self = shift;
 
@@ -301,9 +323,9 @@ sub ordered_schema_versions {
         push @schema_versions, $upgradeclass->versions;
     };
 
-    return sort { version->parse($a) <=> version->parse($b) } do {
+    return sort _byversion do {
         my %seen;
-        grep { !$seen{$_}++ } @schema_versions;
+        grep { defined $_ && !$seen{$_}++ } @schema_versions;
     };
 }
 
@@ -337,7 +359,10 @@ sub upgrade_single_step {
         carp 'Upgrade not necessary';
         return;
     }
-    carp "attempting upgrade from $db_version to $target_version";
+
+    unless ( $db_version eq $self->get_db_version ) {
+        $self->throw_exception("Attempt to upgrade DB from $db_version but current version is " . $self->get_db_version);
+    }
 
     my $sqlt_type = $self->storage->sqlt_type;
 
@@ -357,6 +382,7 @@ sub upgrade_single_step {
         producer      => $sqlt_type,
         show_warnings => 1,
     ) or $self->throw_exception( SQL::Translator->error );
+    $curr_tr->show_warnings(0);
     $curr_tr->translate;
 
     # translate target schema
@@ -393,6 +419,7 @@ sub upgrade_single_step {
         producer      => $sqlt_type,
         show_warnings => 1,
     ) or $self->throw_exception( SQL::Translator->error );
+    $target_tr->show_warnings(0);
     $target_tr->translate;
 
     # now we create the diff which we need as array so we can process one
@@ -431,8 +458,8 @@ sub upgrade_single_step {
         $exception = $_;
     };
 
-    if ($exception) {
-        carp "ERROR: $exception\n";
+    if ( defined $exception ) {
+        $self->throw_exception( $exception );
     }
     else {
 
@@ -470,92 +497,46 @@ sub versioned_schema {
             my $column_info = $source->column_info($column);
             my $versioned   = $column_info->{versioned};
 
-            my $since = $versioned->{since};
-            my $until = $versioned->{until};
+            my $until   = $versioned->{until};
+            my $since   = $versioned->{since};
+            my $changes = $versioned->{changes};
 
-            # until is always a simple case so handle before since as
-            # we may be able to ignore since completely
+            # handle since/until first
 
-            if ($until) {
+            my $name = "$source_name column $column";
+            my $sub  = sub {
+                my $source = shift;
+                $source->remove_column($column);
+            };
+            $self->_since_until( $pversion, $since, $until, $name, $sub,
+                $source);
 
-                # stash the discovered version number
-                push @schema_versions, $until;
+            # handle changes
 
-                if ( $pversion > version->parse($until) ) {
-                    $source->remove_column($column);
-                    next COLUMN;
-                }
-            }
+            if ($changes) {
+                croak "changes not a hasref in $name"
+                   unless ref($changes) eq 'HASH';
 
-            if ($since) {
-                if ( ref($since) eq '' ) {
+                foreach my $change_version ( sort _byversion keys %$changes ) {
 
-                    # a simple since => version
+                    croak "Bad changes version number $change_version in $name"
+                        unless version::is_lax($change_version);
 
-                    # stash the discovered version number
-                    push @schema_versions, $since;
+                    my $change_value = $changes->{$change_version};
 
-                    if ( $pversion < version->parse($since) ) {
+                    croak "not a hasref in $name changes $change_version"
+                        unless ref($change_value) eq 'HASH';
 
-                        # column not yet valid
+                    # stash the version
+                    push @schema_versions, $change_version;
 
-                        $source->remove_column($column);
-                        next COLUMN;
-                    }
-                }
-                elsif ( ref($since) eq 'HASH' ) {
-
-                    # since => { version => {}, ... }
-
-                    # stash the discovered version numbers
-                    push @schema_versions, keys %$since;
-
-                    # now spin through our since entries
-                    # in ascending order of version number
-
-                  KEY: foreach my $key (
-                        sort { version->parse($a) <=> version->parse($b) }
-                        keys %$since
-                      )
-                    {
-
-                        my $value = $since->{$key};
-
-                        if ( ref($value) eq '' && $value eq '' ) {
-
-                            # a simple "since" starting version
-
-                            if ( $pversion < version->parse($key) ) {
-
-                                # column not yet valid
-
-                                $source->remove_column($column);
-                                next COLUMN;
-                            }
-                        }
-                        elsif ( ref($value) eq 'HASH' ) {
-
-                            # we might have some column attributes to add/change
-
-                            if ( $pversion < version->parse($key) ) {
-
-                                # not valid yet
-
-                                last KEY;
-                            }
-
-                            carp Dumper($value);
-                            next COLUMN; #TEMP
-                        }
-                        else {
-                            croak qq(Invalid "since" for column $column)
-                              . qq( in $source_name);
+                    if ( $pversion >= version->parse($change_version) ) {
+                        unless ( $source->remove_column($column)
+                          && $source->add_column($column => $change_value) ) {
+                            croak "Failed to apply change $change_version"
+                              . " to $name";
                         }
                     }
-                }
-                else {
-                    croak
-                      qq(Invalid "since" for column $column in $source_name);
                 }
             }
         }
@@ -609,8 +590,14 @@ sub versioned_schema {
 sub _since_until {
     my ( $self, $pversion, $since, $until, $name, $sub, $thing ) = @_;
 
-    push( @schema_versions, $since ) if $since;
-    push( @schema_versions, $until ) if $until;
+    if ( $since ) {
+        croak "Bad since $since for $name" unless version::is_lax($since);
+        push @schema_versions, $since;
+    }
+    if ( $until ) {
+        croak "Bad until $until for $name" unless version::is_lax($until);
+        push @schema_versions, $until;
+    }
 
     if (   $since
         && $until
@@ -620,7 +607,7 @@ sub _since_until {
     }
 
     # until is absolute so parse before since
-    if ( $until && $pversion > version->parse($until) ) {
+    if ( $until && $pversion >= version->parse($until) ) {
         $sub->($thing);
     }
     if ( $since && $pversion < version->parse($since) ) {
