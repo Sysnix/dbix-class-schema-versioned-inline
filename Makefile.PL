@@ -7,7 +7,7 @@ WriteMakefile(
     NAME               => 'DBIx::Class::Schema::Versioned::Inline',
     AUTHOR             => q{Peter Mottram (SysPete) <peter@sysnix.com>},
     VERSION_FROM       => 'lib/DBIx/Class/Schema/Versioned/Inline.pm',
-    ABSTRACT_FROM      => 'lib/DBIx/Class/Schema/Versioned/Inline.pm',
+    ABSTRACT           => 'Schema versioning for DBIx::Class with version information embedded inline in the schema definition.',
     LICENSE            => 'perl',
     PL_FILES           => {},
     MIN_PERL_VERSION   => 5.006,

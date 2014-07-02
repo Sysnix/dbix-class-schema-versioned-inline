@@ -4,7 +4,7 @@ lib/DBIx/Class/Schema/Versioned/Inline/Upgrade.pm
 Makefile.PL
 MANIFEST			This list of files
 MANIFEST.SKIP
-README.pod
+README
 t/00-load.t
 t/manifest.t
 t/pod-coverage.t

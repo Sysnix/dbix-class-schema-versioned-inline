@@ -2,7 +2,11 @@ package DBIx::Class::Schema::Versioned::Inline;
 
 =head1 NAME
 
-DBIx::Class::Schema::Versioned::Inline - schema versioning for DBIx::Class with version information embedded inline in the schema definition
+DBIx::Class::Schema::Versioned::Inline
+
+=head1 SUMMARY
+
+Schema versioning for DBIx::Class with version information embedded inline in the schema definition.
 
 =head1 VERSION
 
