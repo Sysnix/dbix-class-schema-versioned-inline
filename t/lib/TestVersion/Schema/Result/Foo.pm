@@ -19,13 +19,14 @@ __PACKAGE__->add_columns(
     },
     "width" => {
         data_type   => "integer",
-        is_nullable => 1,
-        versioned   => { since => '0.002', renamed_from => 'height' }
+        is_nullable => 0,
+        default_value => 1,
+        versioned   => { since => '0.002', renamed_from => 'height' },
     },
     "bars_id" => {
         data_type      => 'integer',
         is_foreign_key => 1,
-        is_nullable    => 0,
+        is_nullable    => 1,
         versioned      => { since => '0.002' }
     },
 );

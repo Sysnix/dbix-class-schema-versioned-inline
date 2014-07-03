@@ -36,10 +36,16 @@ test 'deploy 0.001' => sub {
     cmp_deeply( [ $schema->sources ], [qw(Foo)], "class Foo only" );
 
     my $foo = $schema->source('Foo');
-    cmp_deeply( [ sort $foo->columns ], [qw(foos_id height)],
-        "Foo columns OK" )
-      || diag "got: "
-      . join( " ", $foo->columns );
+    cmp_deeply( [ $foo->columns ], bag(qw(foos_id height)), "Foo columns OK" );
+
+    lives_ok( sub { $schema->populate( 'Foo', [[ 'height' ], map { [$_] } (1..10), undef, undef ] ) }, "Insert records into Foo" );
+    cmp_ok( $schema->resultset('Foo')->count, '==', 12, "12 Foos");
+    cmp_ok( $schema->resultset('Foo')->search({ height => undef})->count, '==', 2, "2 null Foos");
+
+    my $rset = $schema->resultset('Foo')->search({});
+    while ( my $result = $rset->next ) {
+        #diag $result->foos_id . "\t" . $result->height . "\n" if $result->height;
+    }
 };
 
 test 'upgrade to 0.002' => sub {
@@ -93,6 +99,13 @@ test 'test 0.002' => sub {
         [qw(bars_id weight)],
         "Bar columns OK"
     );
+    cmp_ok( $schema->resultset('Foo')->count, '==', 12, "12 Foos");
+
+    my $rset = $schema->resultset('Foo')->search({});
+    while ( my $result = $rset->next ) {
+        #diag $result->foos_id . "\t" . $result->width . "\n";
+    }
+
 };
 
 test 'upgrade to 0.003' => sub {

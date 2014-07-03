@@ -376,9 +376,11 @@ sub upgrade_single_step {
 
     # add Upgrade versions
     my $upgradeclass = ref($self) . "::Upgrade";
+    my @before_upgrade_subs;
     eval {
         eval "require $upgradeclass" or return;
-        my @sql = $upgradeclass->upgrade_to($target_version);
+        @before_upgrade_subs = $upgradeclass->before_upgrade($target_version);
+        #carp Dumper \@before_upgrade_subs;
     };
 
     # translate current schema
@@ -443,8 +445,12 @@ sub upgrade_single_step {
         }
     )->compute_differences->produce_diff_sql;
 
-    my $exception;
+                foreach my $sub (@before_upgrade_subs) {
+                    #carp Dumper($sub);
+                    $sub->($self) or die;
+                }
 
+    my $exception;
     try {
         $self->txn_do(
             sub {
@@ -455,6 +461,7 @@ sub upgrade_single_step {
                     $self->storage->dbh_do(
                         sub {
                             my ( $storage, $dbh ) = @_;
+                            #print STDERR $line;
                             $dbh->do($line);
                         }
                     );
@@ -465,6 +472,13 @@ sub upgrade_single_step {
     catch {
         $exception = $_;
     };
+
+#        my $rset = $self->resultset('Foo')->search({});
+#        if ($rset) {
+#            while ( my $res = $rset->next ) {
+#                print STDERR "XX " . $res->width . "\n";
+#            }
+#        }
 
     if ( defined $exception ) {
         $self->throw_exception($exception);
@@ -508,6 +522,7 @@ sub versioned_schema {
             my $until   = $versioned->{until};
             my $since   = $versioned->{since};
             my $changes = $versioned->{changes};
+            my $renamed = $versioned->{renamed_from};
 
             # handle since/until first
 
@@ -518,6 +533,23 @@ sub versioned_schema {
             };
             $self->_since_until( $pversion, $since, $until, $name, $sub,
                 $source );
+
+            # handled renamed column
+
+            if ( $since && $renamed && $_version eq $since) {
+
+                # we need renamed_from to be in "extra" for SQLT
+
+                $column_info->{extra}->{renamed_from} = $renamed;
+
+                unless ( $source->remove_column($column)
+                    && $source->add_column( $column => $column_info ) )
+                {
+                    $self->throw_exception(
+                        "Failed to apply renamed_from for $name" );
+                }
+
+            }
 
             # handle changes
 
