@@ -11,7 +11,7 @@ with 'Upgrade';
 eval "use DBD::SQLite";
 plan skip_all => "DBD::SQLite required" if $@;
 
-my $fh = File::Temp->new( TEMPLATE => 'upgrade_test_XXXXX' );
+my $fh = File::Temp->new( TEMPLATE => 'upgrade_test_XXXXX', EXLOCK => 0 );
 my $dbfile = $fh->filename;
 
 sub connect_info {

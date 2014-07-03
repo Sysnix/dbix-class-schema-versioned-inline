@@ -4,3 +4,8 @@ Revision history for DBIx::Class::Schema::Versioned::Inline
 
     * Initial release with missing functionality (Upgrade.pm)
 
+0.002 Thu Jul  3 10:19:43 CEST 2014
+
+    * Add EXLOCK => 0 to File::Temp creation in upgrade-sqlite.t to prevent
+      BSD/Mac locking (Slaven Rezić (eserte)) fixes GH#1
+

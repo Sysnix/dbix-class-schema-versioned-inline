@@ -6,7 +6,7 @@ SUMMARY
     inline in the schema definition.
 
 VERSION
-    Version 0.001
+    Version 0.002
 
 SYNOPSIS
      package MyApp::Schema;
@@ -308,6 +308,9 @@ CAVEATS
 
 AUTHOR
     Peter Mottram (SysPete), "peter@sysnix.com"
+
+CONTRIBUTORS
+    Slaven Rezić (eserte)
 
 BUGS
     LOTS of bugs and missing features right now.

@@ -1,5 +1,7 @@
 package DBIx::Class::Schema::Versioned::Inline;
 
+=encoding utf8
+
 =head1 NAME
 
 DBIx::Class::Schema::Versioned::Inline
@@ -10,11 +12,11 @@ Schema versioning for DBIx::Class with version information embedded inline in th
 
 =head1 VERSION
 
-Version 0.001
+Version 0.002
 
 =cut
 
-our $VERSION = '0.001';
+our $VERSION = '0.002';
 
 =head1 SYNOPSIS
 
@@ -633,6 +635,10 @@ Please anticipate API changes in this early state of development.
 =head1 AUTHOR
 
 Peter Mottram (SysPete), "peter@sysnix.com"
+
+=head1 CONTRIBUTORS
+
+Slaven Rezić (eserte)
 
 =head1 BUGS
 
