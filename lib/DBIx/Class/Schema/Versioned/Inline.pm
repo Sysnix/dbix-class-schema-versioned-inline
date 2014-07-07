@@ -445,15 +445,14 @@ sub upgrade_single_step {
         }
     )->compute_differences->produce_diff_sql;
 
-                foreach my $sub (@before_upgrade_subs) {
-                    #carp Dumper($sub);
-                    $sub->($self) or die;
-                }
 
     my $exception;
     try {
         $self->txn_do(
             sub {
+                foreach my $sub (@before_upgrade_subs) {
+                    $sub->($self) or die;
+                }
                 foreach my $line (@diff) {
 
                     # drop comments and BEGIN/COMMIT

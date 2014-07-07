@@ -16,8 +16,6 @@ has database => (
 after each_test => sub {
     my $self = shift;
     $self->clear_database;
-
-    #Class::Unload->unload('TestVersion::Schema::Result::Foo');
 };
 
 test 'deploy v0.001' => sub {
@@ -97,7 +95,7 @@ test 'deploy v0.002' => sub {
     my $foo = $schema->source('Foo');
     cmp_deeply(
         [ $foo->columns ],
-        bag(qw(age bars_id foos_id width)),
+        bag(qw(age foos_id width)),
         "Foo columns OK"
     );
 
@@ -127,58 +125,14 @@ test 'deploy v0.002' => sub {
         },
         width => {
             data_type   => "integer",
-            is_nullable => 1,
-            versioned   => { since => '0.002', renamed_from => 'height' }
+            is_nullable => 0,
+            default_value => 1,
+            versioned   => { since => '0.002', renamed_from => 'height' },
+            extra       => { renamed_from => 'height' }
         },
-        bars_id => {
-            data_type      => 'integer',
-            is_foreign_key => 1,
-            is_nullable    => 0,
-            versioned      => { since => '0.002' }
-        }
-    };
-    my $bar_relations = {
-        foos => {
-            attrs => {
-                accessor       => "multi",
-                cascade_copy   => 1,
-                cascade_delete => 1,
-                join_type      => "LEFT",
-                versioned      => {
-                    until => "0.003"
-                }
-            },
-            class => "TestVersion::Schema::Result::Foo",
-            cond  => {
-                "foreign.foos_id" => "self.bars_id"
-            },
-            source => "TestVersion::Schema::Result::Foo"
-        }
-    };
-    my $foo_relations = {
-        bar => {
-            attrs => {
-                accessor   => "single",
-                fk_columns => {
-                    bars_id => 1
-                },
-                is_foreign_key_constraint => 1,
-                undef_on_null_fk          => 1,
-                versioned                 => {
-                    since => "0.002"
-                }
-            },
-            class => "TestVersion::Schema::Result::Bar",
-            cond  => {
-                "foreign.bars_id" => "self.bars_id"
-            },
-            source => "TestVersion::Schema::Result::Bar"
-        }
     };
     cmp_deeply( $bar->_columns,       $bar_columns,   "Bar column info OK" );
     cmp_deeply( $foo->_columns,       $foo_columns,   "Foo column info OK" );
-    cmp_deeply( $bar->_relationships, $bar_relations, "Bar relations OK" );
-    cmp_deeply( $foo->_relationships, $foo_relations, "Foo relations OK" );
 };
 
 test 'deploy v0.003' => sub {

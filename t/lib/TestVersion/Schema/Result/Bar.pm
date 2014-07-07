@@ -39,11 +39,6 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key('bars_id');
 
 __PACKAGE__->has_many(
-    'foos', 'TestVersion::Schema::Result::Foo',
-    'foos_id', { versioned => { until => '0.003' } },
-);
-
-__PACKAGE__->has_many(
     'trees', 'TestVersion::Schema::Result::Tree',
     'trees_id', { versioned => { since => '0.003' } },
 );

@@ -7,13 +7,22 @@ use Data::Dumper;
 use Test::Roo::Role;
 use Test::Most;
 use DBIx::Class::Schema::Loader qw/make_schema_at/;
+use SQL::Translator;
+
+my $sqlt_version = SQL::Translator->VERSION;
 
 requires 'connect_info';
 
 has database => (
-    is => 'lazy',
+    is      => 'lazy',
     clearer => 1,
 );
+
+before each_test => sub {
+    my $self = shift;
+
+    #print Dumper($self);
+};
 
 after each_test => sub {
     my $self = shift;
@@ -26,7 +35,7 @@ test 'deploy 0.001' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.001' };
 
-    my $schema = TestVersion::Schema->connect($self->connect_info);
+    my $schema = TestVersion::Schema->connect( $self->connect_info );
 
     lives_ok( sub { $schema->deploy }, "deploy schema" );
 
@@ -38,14 +47,24 @@ test 'deploy 0.001' => sub {
     my $foo = $schema->source('Foo');
     cmp_deeply( [ $foo->columns ], bag(qw(foos_id height)), "Foo columns OK" );
 
-    lives_ok( sub { $schema->populate( 'Foo', [[ 'height' ], map { [$_] } (1..10), undef, undef ] ) }, "Insert records into Foo" );
-    cmp_ok( $schema->resultset('Foo')->count, '==', 12, "12 Foos");
-    cmp_ok( $schema->resultset('Foo')->search({ height => undef})->count, '==', 2, "2 null Foos");
+    lives_ok(
+        sub {
+            $schema->populate( 'Foo',
+                [ ['height'], map { [$_] } ( 1 .. 10 ), undef, undef ] );
+        },
+        "Insert records into Foo"
+    );
+    cmp_ok( $schema->resultset('Foo')->count, '==', 12, "12 Foos" );
+    cmp_ok( $schema->resultset('Foo')->search( { height => undef } )->count,
+        '==', 2, "2 null Foos" );
 
-    my $rset = $schema->resultset('Foo')->search({});
-    while ( my $result = $rset->next ) {
-        #diag $result->foos_id . "\t" . $result->height . "\n" if $result->height;
-    }
+    my $aref = $schema->storage->dbh->selectcol_arrayref(
+        q(SELECT height FROM foos ORDER BY foos_id ASC));
+    cmp_deeply(
+        $aref,
+        [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, undef, undef ],
+        "height values OK"
+    );
 };
 
 test 'upgrade to 0.002' => sub {
@@ -54,7 +73,7 @@ test 'upgrade to 0.002' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.002' };
 
-    my $schema = TestVersion::Schema->connect($self->connect_info);
+    my $schema = TestVersion::Schema->connect( $self->connect_info );
 
     cmp_ok( $schema->schema_version, 'eq', '0.002', "Check schema version" );
     cmp_ok( $schema->get_db_version, 'eq', '0.001', "Check db version" );
@@ -88,24 +107,15 @@ test 'test 0.002' => sub {
 
     # columns
     my $foo = $schema->source('Foo');
-    cmp_bag(
-        [ Test::Schema::Result::Foo->columns ],
-        [qw(age bars_id foos_id width)],
-        "Foo columns OK"
-    );
+    cmp_bag( [ Test::Schema::Result::Foo->columns ],
+        [qw(age foos_id width)], "Foo columns OK" );
     my $bar = $schema->source('Bar');
-    cmp_bag(
-        [ $bar->columns ],
-        [qw(bars_id weight)],
-        "Bar columns OK"
-    );
-    cmp_ok( $schema->resultset('Foo')->count, '==', 12, "12 Foos");
+    cmp_bag( [ $bar->columns ], [qw(bars_id weight)], "Bar columns OK" );
+    cmp_ok( $schema->resultset('Foo')->count, '==', 12, "12 Foos" );
 
-    my $rset = $schema->resultset('Foo')->search({});
-    while ( my $result = $rset->next ) {
-        #diag $result->foos_id . "\t" . $result->width . "\n";
-    }
-
+    my $aref = $schema->storage->dbh->selectcol_arrayref(
+        q(SELECT width FROM foos ORDER BY foos_id ASC));
+    cmp_deeply( $aref, [qw(1 2 3 4 5 6 7 8 9 10 20 20)], "width values OK" );
 };
 
 test 'upgrade to 0.003' => sub {
@@ -114,7 +124,7 @@ test 'upgrade to 0.003' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.003' };
 
-    my $schema = TestVersion::Schema->connect($self->connect_info);
+    my $schema = TestVersion::Schema->connect( $self->connect_info );
 
     cmp_ok( $schema->schema_version, 'eq', '0.003', "Check schema version" );
     cmp_ok( $schema->get_db_version, 'eq', '0.002', "Check db version" );
@@ -168,7 +178,7 @@ test 'upgrade to 0.3' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.3' };
 
-    my $schema = TestVersion::Schema->connect($self->connect_info);
+    my $schema = TestVersion::Schema->connect( $self->connect_info );
 
     cmp_ok( $schema->schema_version, 'eq', '0.3',   "Check schema version" );
     cmp_ok( $schema->get_db_version, 'eq', '0.003', "Check db version" );
@@ -222,7 +232,7 @@ test 'upgrade to 0.4' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.4' };
 
-    my $schema = TestVersion::Schema->connect($self->connect_info);
+    my $schema = TestVersion::Schema->connect( $self->connect_info );
 
     cmp_ok( $schema->schema_version, 'eq', '0.4', "Check schema version" );
     cmp_ok( $schema->get_db_version, 'eq', '0.3', "Check db version" );
@@ -263,11 +273,7 @@ test 'test 0.4' => sub {
         "Tree columns OK"
     );
     my $bar = $schema->source('Bar');
-    cmp_bag(
-        [ $bar->columns ],
-        [qw(age bars_id height)],
-        "Bar columns OK"
-    );
+    cmp_bag( [ $bar->columns ], [qw(age bars_id height)], "Bar columns OK" );
 };
 
 1;

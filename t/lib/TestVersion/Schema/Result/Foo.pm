@@ -23,20 +23,9 @@ __PACKAGE__->add_columns(
         default_value => 1,
         versioned   => { since => '0.002', renamed_from => 'height' },
     },
-    "bars_id" => {
-        data_type      => 'integer',
-        is_foreign_key => 1,
-        is_nullable    => 1,
-        versioned      => { since => '0.002' }
-    },
 );
 
 __PACKAGE__->set_primary_key('foos_id');
-
-__PACKAGE__->belongs_to(
-    'bar', 'TestVersion::Schema::Result::Bar',
-    'bars_id', { versioned => { since => '0.002' } },
-);
 
 __PACKAGE__->resultset_attributes( { versioned => { until => '0.003' } } );
 
