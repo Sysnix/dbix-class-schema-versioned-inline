@@ -255,7 +255,6 @@ use strict;
 use base 'DBIx::Class::Schema::Versioned';
 
 use Carp;
-use Data::Dumper::Concise;
 use SQL::Translator;
 use SQL::Translator::Diff;
 use Try::Tiny;
@@ -380,7 +379,6 @@ sub upgrade_single_step {
     eval {
         eval "require $upgradeclass" or return;
         @before_upgrade_subs = $upgradeclass->before_upgrade($target_version);
-        #carp Dumper \@before_upgrade_subs;
     };
 
     # translate current schema

@@ -2,7 +2,6 @@ package Deploy;
 
 $ENV{DBIC_NO_VERSION_CHECK} = 1;
 
-use Data::Dumper::Concise;
 use Test::Roo::Role;
 use Test::Most;
 
