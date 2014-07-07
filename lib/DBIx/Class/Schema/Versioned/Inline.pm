@@ -12,11 +12,11 @@ Schema versioning for DBIx::Class with version information embedded inline in th
 
 =head1 VERSION
 
-Version 0.002
+Version 0.003
 
 =cut
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 =head1 SYNOPSIS
 
