@@ -123,15 +123,15 @@ test 'deploy v0.002' => sub {
             versioned   => { since => '0.002' }
         },
         width => {
-            data_type   => "integer",
-            is_nullable => 0,
+            data_type     => "integer",
+            is_nullable   => 0,
             default_value => 1,
-            versioned   => { since => '0.002', renamed_from => 'height' },
-            extra       => { renamed_from => 'height' }
+            versioned     => { since => '0.002', renamed_from => 'height' },
+            extra => { renamed_from => 'height' }
         },
     };
-    cmp_deeply( $bar->_columns,       $bar_columns,   "Bar column info OK" );
-    cmp_deeply( $foo->_columns,       $foo_columns,   "Foo column info OK" );
+    cmp_deeply( $bar->_columns, $bar_columns, "Bar column info OK" );
+    cmp_deeply( $foo->_columns, $foo_columns, "Foo column info OK" );
 };
 
 test 'deploy v0.003' => sub {
@@ -213,9 +213,10 @@ test 'deploy v0.003' => sub {
     my $tree_columns = {
         "trees_id" => { data_type => 'integer', is_auto_increment => 1 },
         "age"      => { data_type => "integer", is_nullable       => 1 },
-        "width"    => { data_type => "integer", is_nullable       => 1 },
+        "width" =>
+          { data_type => "integer", is_nullable => 0, default_value => 1 },
         "bars_id" =>
-            { data_type => 'integer', is_foreign_key => 1, is_nullable => 0 },
+          { data_type => 'integer', is_foreign_key => 1, is_nullable => 1 },
     };
     my $bar_relations = {
         trees => {
@@ -252,9 +253,9 @@ test 'deploy v0.003' => sub {
             source => "TestVersion::Schema::Result::Bar"
         }
     };
-    cmp_deeply( $bar->_columns,       $bar_columns,   "Bar column info OK" );
+    cmp_deeply( $bar->_columns,        $bar_columns,    "Bar column info OK" );
     cmp_deeply( $tree->_columns,       $tree_columns,   "Tree column info OK" );
-    cmp_deeply( $bar->_relationships, $bar_relations, "Bar relations OK" );
+    cmp_deeply( $bar->_relationships,  $bar_relations,  "Bar relations OK" );
     cmp_deeply( $tree->_relationships, $tree_relations, "Tree relations OK" );
 };
 
@@ -320,9 +321,10 @@ test 'deploy v0.4' => sub {
     my $tree_columns = {
         "trees_id" => { data_type => 'integer', is_auto_increment => 1 },
         "age"      => { data_type => "integer", is_nullable       => 1 },
-        "width"    => { data_type => "integer", is_nullable       => 1 },
+        "width" =>
+          { data_type => "integer", is_nullable => 0, default_value => 1 },
         "bars_id" =>
-            { data_type => 'integer', is_foreign_key => 1, is_nullable => 0 },
+          { data_type => 'integer', is_foreign_key => 1, is_nullable => 1 },
     };
     my $bar_relations = {
         trees => {
@@ -359,9 +361,9 @@ test 'deploy v0.4' => sub {
             source => "TestVersion::Schema::Result::Bar"
         }
     };
-    cmp_deeply( $bar->_columns,       $bar_columns,   "Bar column info OK" );
+    cmp_deeply( $bar->_columns,        $bar_columns,    "Bar column info OK" );
     cmp_deeply( $tree->_columns,       $tree_columns,   "Tree column info OK" );
-    cmp_deeply( $bar->_relationships, $bar_relations, "Bar relations OK" );
+    cmp_deeply( $bar->_relationships,  $bar_relations,  "Bar relations OK" );
     cmp_deeply( $tree->_relationships, $tree_relations, "Tree relations OK" );
 };
 

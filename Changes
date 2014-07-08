@@ -12,3 +12,8 @@ Revision history for DBIx::Class::Schema::Versioned::Inline
 0.003 Mon Jul  7 19:47:09 CEST 2014
 
     * Upgrade.pm 'before' now implemented with basic tests
+
+0.004 Tue Jul  8 13:16:01 CEST 2014
+
+    * rename_from working for classes (though bugs in SQLT mean that it does not work for SQLite and Pg)
+    * SKIP failing tests

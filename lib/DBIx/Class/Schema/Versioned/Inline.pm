@@ -12,11 +12,11 @@ Schema versioning for DBIx::Class with version information embedded inline in th
 
 =head1 VERSION
 
-Version 0.003
+Version 0.004
 
 =cut
 
-our $VERSION = '0.003';
+our $VERSION = '0.004';
 
 =head1 SYNOPSIS
 
@@ -179,6 +179,8 @@ Using 'until' in a column or relationship definition will cause removal of the c
 
 This is always used alongside 'since' in the renamed class/column and there must also be a corresponding 'until' on the old class/column.
 
+NOTE: when renaming a class the 'renamed_from' value is the table name of the old class and NOT the class name.
+
 For example when renaming a class:
 
  package MyApp::Schema::Result::Foo;
@@ -190,7 +192,7 @@ For example when renaming a class:
 
  __PACKAGE__->table('fooeys');
  __PACKAGE__->resultset_attributes({
-    versioned => { since => '0.5, renamed_from => 'Foo' }
+    versioned => { since => '0.5, renamed_from => 'foos' }
  });
 
 And when renaming a column:
@@ -383,15 +385,15 @@ sub upgrade_single_step {
 
     # translate current schema
 
-    my $curr_tr = SQL::Translator->new(
+    my $curr_sqlt = SQL::Translator->new(
         no_comments   => 1,
         parser        => 'SQL::Translator::Parser::DBIx::Class',
         parser_args   => { dbic_schema => $self, },
         producer      => $sqlt_type,
         show_warnings => 1,
     ) or $self->throw_exception( SQL::Translator->error );
-    $curr_tr->show_warnings(0);
-    $curr_tr->translate;
+    $curr_sqlt->show_warnings(0);
+    $curr_sqlt->translate;
 
     # translate target schema
 
@@ -420,15 +422,29 @@ sub upgrade_single_step {
     # turn noises back to normal level
     $ENV{DBIC_NO_VERSION_CHECK} = $old_DBIC_NO_VERSION_CHECK;
 
-    my $target_tr = SQL::Translator->new(
+    my $target_sqlt = SQL::Translator->new(
         no_comments   => 1,
         parser        => 'SQL::Translator::Parser::DBIx::Class',
         parser_args   => { dbic_schema => $target_schema, },
         producer      => $sqlt_type,
         show_warnings => 1,
     ) or $self->throw_exception( SQL::Translator->error );
-    $target_tr->show_warnings(0);
-    $target_tr->translate;
+    $target_sqlt->show_warnings(0);
+    $target_sqlt->translate;
+
+    # we need to add class (table) renamed_from into $target_sqlt->schema->extra
+
+    foreach my $source_name ( $target_schema->sources ) {
+        my $source    = $target_schema->source($source_name);
+        my $versioned = $source->resultset_attributes->{versioned};
+        if (   $versioned
+            && $versioned->{renamed_from}
+            && $versioned->{since} eq $target_version )
+        {
+            my $table = $target_sqlt->schema->get_table( $source->name );
+            $table->extra( renamed_from => $versioned->{renamed_from} );
+        }
+    }
 
     # now we create the diff which we need as array so we can process one
     # line at a time
@@ -436,13 +452,12 @@ sub upgrade_single_step {
     my @diff = SQL::Translator::Diff->new(
         {
             output_db               => $sqlt_type,
-            source_schema           => $curr_tr->schema,
-            target_schema           => $target_tr->schema,
+            source_schema           => $curr_sqlt->schema,
+            target_schema           => $target_sqlt->schema,
             ignore_index_names      => 1,
             ignore_constraint_names => 1,
         }
     )->compute_differences->produce_diff_sql;
-
 
     my $exception;
     try {
@@ -458,7 +473,7 @@ sub upgrade_single_step {
                     $self->storage->dbh_do(
                         sub {
                             my ( $storage, $dbh ) = @_;
-                            #print STDERR $line;
+
                             $dbh->do($line);
                         }
                     );
@@ -469,13 +484,6 @@ sub upgrade_single_step {
     catch {
         $exception = $_;
     };
-
-#        my $rset = $self->resultset('Foo')->search({});
-#        if ($rset) {
-#            while ( my $res = $rset->next ) {
-#                print STDERR "XX " . $res->width . "\n";
-#            }
-#        }
 
     if ( defined $exception ) {
         $self->throw_exception($exception);
@@ -533,7 +541,7 @@ sub versioned_schema {
 
             # handled renamed column
 
-            if ( $since && $renamed && $_version eq $since) {
+            if ( $since && $renamed && $_version eq $since ) {
 
                 # we need renamed_from to be in "extra" for SQLT
 
@@ -543,7 +551,7 @@ sub versioned_schema {
                     && $source->add_column( $column => $column_info ) )
                 {
                     $self->throw_exception(
-                        "Failed to apply renamed_from for $name" );
+                        "Failed to apply renamed_from for $name");
                 }
 
             }
@@ -574,7 +582,7 @@ sub versioned_schema {
                             && $source->add_column( $column => $change_value ) )
                         {
                             $self->throw_exception(
-                                "Failed change $change_version for $name" );
+                                "Failed change $change_version for $name");
                         }
                     }
                 }

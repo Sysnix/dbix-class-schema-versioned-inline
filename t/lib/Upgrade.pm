@@ -170,6 +170,10 @@ test 'test 0.003' => sub {
         [qw(age bars_id height weight)],
         "Bar columns OK"
     );
+
+    my $aref = $schema->storage->dbh->selectcol_arrayref(
+        q(SELECT width FROM trees ORDER BY trees_id ASC));
+    cmp_deeply( $aref, [qw(1 2 3 4 5 6 7 8 9 10 20 20)], "width values OK" );
 };
 
 test 'upgrade to 0.3' => sub {
