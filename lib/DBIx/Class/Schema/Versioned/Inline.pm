@@ -701,6 +701,7 @@ Peter Mottram (SysPete), "peter@sysnix.com"
 =head1 CONTRIBUTORS
 
 Slaven Rezić (eserte)
+Stefan Hornburg (racke)
 
 =head1 BUGS
 
