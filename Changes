@@ -17,3 +17,7 @@ Revision history for DBIx::Class::Schema::Versioned::Inline
 
     * rename_from working for classes (though bugs in SQLT mean that it does not work for SQLite and Pg)
     * SKIP failing tests
+
+0.010 Wed Jul  9 11:39:27 CEST 2014
+
+    * Upgrade.pm 'after' now implemented with basic tests

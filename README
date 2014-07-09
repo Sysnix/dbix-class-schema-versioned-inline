@@ -5,8 +5,17 @@ SUMMARY
     Schema versioning for DBIx::Class with version information embedded
     inline in the schema definition.
 
+WARNING
+    Although all documented functionality has been implemented it is only
+    possible to use the module currently with MySQL. Tests exist for SQLite
+    and PostgreSQL but upgrade tests are currently broken and so are skipped
+    due to issues with SQL::Translator. I am hoping the SQLT issues can be
+    resolved ASAP.
+
+    This is BETA software so the usual caveats apply.
+
 VERSION
-    Version 0.002
+    Version 0.010
 
 SYNOPSIS
      package MyApp::Schema;
@@ -179,6 +188,9 @@ DESCRIPTION
     This is always used alongside 'since' in the renamed class/column and
     there must also be a corresponding 'until' on the old class/column.
 
+    NOTE: when renaming a class the 'renamed_from' value is the table name
+    of the old class and NOT the class name.
+
     For example when renaming a class:
 
      package MyApp::Schema::Result::Foo;
@@ -190,7 +202,7 @@ DESCRIPTION
 
      __PACKAGE__->table('fooeys');
      __PACKAGE__->resultset_attributes({
-        versioned => { since => '0.5, renamed_from => 'Foo' }
+        versioned => { since => '0.5, renamed_from => 'foos' }
      });
 
     And when renaming a column:
@@ -261,8 +273,8 @@ METHODS
 
   connection
     Overloaded method. This checks the DBIC schema version against the DB
-    version and ???? TODO ???? (undecided so far) if they are not the same
-    or if the DB is unversioned.
+    version and uses the DB version if it exists or the schema version if
+    the database is currently unversioned.
 
   deploy
     Inherited method. Same as "deploy" in DBIx::Class::Schema but also calls
@@ -313,9 +325,7 @@ CONTRIBUTORS
     Slaven Rezić (eserte)
 
 BUGS
-    LOTS of bugs and missing features right now.
-
-    NOTE: upgrades are NOT yet implemented.
+    This is BETA software so bugs and missing features are expected.
 
     Please report any bugs or feature requests via the project's GitHub
     issue tracker:

@@ -10,13 +10,19 @@ DBIx::Class::Schema::Versioned::Inline
 
 Schema versioning for DBIx::Class with version information embedded inline in the schema definition.
 
+=head1 WARNING
+
+Although all documented functionality has been implemented it is only possible to use the module currently with MySQL. Tests exist for SQLite and PostgreSQL but upgrade tests are currently broken and so are skipped due to issues with L<SQL::Translator>. I am hoping the SQLT issues can be resolved ASAP.
+
+This is BETA software so the usual caveats apply.
+
 =head1 VERSION
 
-Version 0.004
+Version 0.010
 
 =cut
 
-our $VERSION = '0.004';
+our $VERSION = '0.010';
 
 =head1 SYNOPSIS
 
@@ -270,7 +276,7 @@ Many methods are inherited or overloaded from L<DBIx::Class::Schema::Versioned>.
 
 =head2 connection
 
-Overloaded method. This checks the DBIC schema version against the DB version and ???? TODO ???? (undecided so far) if they are not the same or if the DB is unversioned.
+Overloaded method. This checks the DBIC schema version against the DB version and uses the DB version if it exists or the schema version if the database is currently unversioned.
 
 =cut
 
@@ -685,9 +691,7 @@ Slaven Rezić (eserte)
 
 =head1 BUGS
 
-LOTS of bugs and missing features right now.
-
-NOTE: upgrades are NOT yet implemented.
+This is BETA software so bugs and missing features are expected.
 
 Please report any bugs or feature requests via the project's GitHub issue tracker:
 
