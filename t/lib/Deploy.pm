@@ -25,7 +25,7 @@ test 'deploy v0.001' => sub {
 
     my $schema = TestVersion::Schema->connect( $self->connect_info );
 
-    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.4' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.4' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.001', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -70,7 +70,7 @@ test 'deploy v0.002' => sub {
 
     my $schema = TestVersion::Schema->connect( $self->connect_info );
 
-    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.4' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.4' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.002', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -142,7 +142,7 @@ test 'deploy v0.003' => sub {
 
     my $schema = TestVersion::Schema->connect( $self->connect_info );
 
-    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.4' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.4' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.003', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -211,7 +211,7 @@ test 'deploy v0.003' => sub {
         }
     };
     my $tree_columns = {
-        "trees_id" => { data_type => 'integer', is_auto_increment => 1 },
+        "trees_id" => { data_type => 'integer', is_auto_increment => 1, versioned => { renamed_from => "foos_id" }, extra => { renamed_from => "foos_id" } },
         "age"      => { data_type => "integer", is_nullable       => 1 },
         "width" =>
           { data_type => "integer", is_nullable => 0, default_value => 1 },
@@ -267,7 +267,7 @@ test 'deploy v0.4' => sub {
 
     my $schema = TestVersion::Schema->connect( $self->connect_info );
 
-    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.005', '0.4' );
+    my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.4' );
 
     cmp_ok( $schema->schema_version, 'eq', '0.4', "Check schema version" );
     cmp_ok( $schema->get_db_version, '==', 0, "db version not defined yet" );
@@ -319,7 +319,7 @@ test 'deploy v0.4' => sub {
         },
     };
     my $tree_columns = {
-        "trees_id" => { data_type => 'integer', is_auto_increment => 1 },
+        "trees_id" => { data_type => 'integer', is_auto_increment => 1, versioned => { renamed_from => "foos_id" }, extra => { renamed_from => "foos_id" } },
         "age"      => { data_type => "integer", is_nullable       => 1 },
         "width" =>
           { data_type => "integer", is_nullable => 0, default_value => 1 },

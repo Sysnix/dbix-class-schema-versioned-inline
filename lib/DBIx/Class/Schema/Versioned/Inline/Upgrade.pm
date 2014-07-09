@@ -116,6 +116,7 @@ Returns the C<before> subroutines that have been registered for the given versio
 
 sub after_upgrade {
     my ( $self, $version ) = @_;
+    return unless $UPGRADES{$version}{after};
     return
       wantarray
       ? @{ $UPGRADES{$version}{after} }
@@ -130,6 +131,7 @@ Returns the C<before> subroutines that have been registered for the given versio
 
 sub before_upgrade {
     my ( $self, $version ) = @_;
+    return unless $UPGRADES{$version}{before};
     return
       wantarray
       ? @{ $UPGRADES{$version}{before} }

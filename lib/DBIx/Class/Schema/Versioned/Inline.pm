@@ -270,7 +270,7 @@ use SQL::Translator::Diff;
 use Try::Tiny;
 use version 0.77;
 
-our @schema_versions;
+our ( @schema_versions, %upgrades );
 
 =head1 METHODS
 
@@ -331,12 +331,12 @@ sub ordered_schema_versions {
     # add schema and database versions to list
     push @schema_versions, $self->get_db_version, $self->schema_version;
 
-    # add Upgrade versions
-    my $upgradeclass = ref($self) . "::Upgrade";
-    eval {
-        eval "require $upgradeclass" or return;
-        push @schema_versions, $upgradeclass->versions;
-    };
+#    # add Upgrade versions
+#    my $upgradeclass = ref($self) . "::Upgrade";
+#    eval {
+#        eval "require $upgradeclass" or return;
+#        push @schema_versions, $upgradeclass->versions;
+#    };
 
     return sort _byversion do {
         my %seen;
@@ -483,7 +483,7 @@ sub upgrade_single_step {
                     $self->storage->dbh_do(
                         sub {
                             my ( $storage, $dbh ) = @_;
-
+                            #print STDERR $line;
                             $dbh->do($line);
                         }
                     );

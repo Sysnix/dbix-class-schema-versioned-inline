@@ -21,3 +21,4 @@ Revision history for DBIx::Class::Schema::Versioned::Inline
 0.010 Wed Jul  9 11:39:27 CEST 2014
 
     * Upgrade.pm 'after' now implemented with basic tests
+

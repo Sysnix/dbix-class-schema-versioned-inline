@@ -50,21 +50,21 @@ test 'deploy 0.001' => sub {
     lives_ok(
         sub {
             $schema->populate( 'Foo',
-                [ ['height'], map { [$_] } ( 1 .. 10 ), undef, undef ] );
+                [ ['height'], map { [$_] } ( 1 .. 4 ), undef, undef ] );
         },
         "Insert records into Foo"
     );
-    cmp_ok( $schema->resultset('Foo')->count, '==', 12, "12 Foos" );
+    cmp_ok( $schema->resultset('Foo')->count, '==', 6, "6 Foos" );
     cmp_ok( $schema->resultset('Foo')->search( { height => undef } )->count,
         '==', 2, "2 null Foos" );
 
-    my $aref = $schema->storage->dbh->selectcol_arrayref(
-        q(SELECT height FROM foos ORDER BY foos_id ASC));
+    my $aref = $schema->storage->dbh->selectall_arrayref(
+        q(SELECT foos_id, height FROM foos ORDER BY foos_id ASC));
     cmp_deeply(
         $aref,
-        [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, undef, undef ],
+        [[1,1],[2,2],[3,3],[4,4],[5,undef],[6,undef]],
         "height values OK"
-    );
+    ) || diag Dumper $aref;
 };
 
 test 'upgrade to 0.002' => sub {
@@ -111,12 +111,16 @@ test 'test 0.002' => sub {
         [qw(age foos_id width)], "Foo columns OK" );
     my $bar = $schema->source('Bar');
     cmp_bag( [ $bar->columns ], [qw(bars_id weight)], "Bar columns OK" );
-    cmp_ok( $schema->resultset('Foo')->count, '==', 12, "12 Foos" );
+    cmp_ok( $schema->resultset('Foo')->count, '==', 7, "7 Foos" );
     cmp_ok( $schema->resultset('Bar')->count, '==', 1, "1 Bar" );
 
-    my $aref = $schema->storage->dbh->selectcol_arrayref(
-        q(SELECT width FROM foos ORDER BY foos_id ASC));
-    cmp_deeply( $aref, [qw(1 2 3 4 5 6 7 8 9 10 20 20)], "width values OK" );
+    my $aref = $schema->storage->dbh->selectall_arrayref(
+        q(SELECT foos_id,width FROM foos ORDER BY foos_id ASC));
+    cmp_deeply(
+        $aref,
+        [[1,1],[2,2],[3,3],[4,4],[5,20],[6,20],[7,30]],
+        "width values OK"
+    ) || diag Dumper $aref;
 };
 
 test 'upgrade to 0.003' => sub {
@@ -172,9 +176,13 @@ test 'test 0.003' => sub {
         "Bar columns OK"
     );
 
-    my $aref = $schema->storage->dbh->selectcol_arrayref(
-        q(SELECT width FROM trees ORDER BY trees_id ASC));
-    cmp_deeply( $aref, [qw(1 2 3 4 5 6 7 8 9 10 20 20)], "width values OK" );
+    my $aref = $schema->storage->dbh->selectall_arrayref(
+        q(SELECT trees_id,width FROM trees ORDER BY trees_id ASC));
+    cmp_deeply(
+        $aref,
+        [[1,1],[2,2],[3,3],[4,4],[5,20],[6,20],[7,30],[8,40]],
+        "width values OK"
+    );# || diag Dumper $aref;
 };
 
 test 'upgrade to 0.3' => sub {

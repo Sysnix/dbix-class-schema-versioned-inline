@@ -12,18 +12,18 @@ before '0.002' => sub {
 after '0.002' => sub {
     my $schema = shift;
     $schema->resultset('Bar')->create({ weight => 20 });
+    $schema->resultset('Foo')->create({ width => 30 });
 };
 
 after '0.003' => sub {
-    return 1;
+    my $schema = shift;
+    $schema->resultset('Tree')->create({ width => 40 });
 };
 
 before '0.004' => sub {
-    return 1;
-};
-
-after '0.005' => sub {
-    return 1;
+    my $schema = shift;
+    my $rset = $schema->resultset('Bar')->search({ age => undef });
+    $rset->update({ age => 0});
 };
 
 1;
