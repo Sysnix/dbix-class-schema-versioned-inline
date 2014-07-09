@@ -6,7 +6,9 @@ use warnings;
 __PACKAGE__->table('trees');
 
 __PACKAGE__->add_columns(
-    "trees_id" => { data_type => 'integer', is_auto_increment => 1 },
+    "trees_id" => { data_type => 'integer', is_auto_increment => 1,
+        versioned => { renamed_from => 'foos_id' }
+    },
     "age"      => { data_type => "integer", is_nullable       => 1 },
     "width"    => { data_type => "integer", is_nullable       => 0, default_value => 1 },
     "bars_id" =>

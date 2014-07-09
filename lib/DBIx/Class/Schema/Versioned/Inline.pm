@@ -553,19 +553,30 @@ sub versioned_schema {
 
             # handled renamed column
 
-            if ( $since && $renamed && $_version eq $since ) {
+            if ( $renamed ) {
 
-                # we need renamed_from to be in "extra" for SQLT
+                unless ($since) {
 
-                $column_info->{extra}->{renamed_from} = $renamed;
+                    # catch sitation where class has since but renamed_from
+                    # on column does not (renamed PK columns for example)
 
-                unless ( $source->remove_column($column)
-                    && $source->add_column( $column => $column_info ) )
-                {
-                    $self->throw_exception(
-                        "Failed to apply renamed_from for $name");
+                    my $rsa_ver = $source->resultset_attributes->{versioned};
+                    $since = $rsa_ver->{since} if $rsa_ver->{since};
                 }
 
+                if ( $since && $_version eq $since ) {
+
+                    # we need renamed_from to be in "extra" for SQLT
+
+                    $column_info->{extra}->{renamed_from} = $renamed;
+
+                    unless ( $source->remove_column($column)
+                        && $source->add_column( $column => $column_info ) )
+                    {
+                        $self->throw_exception(
+                            "Failed to apply renamed_from for $name");
+                    }
+                }
             }
 
             # handle changes
