@@ -216,6 +216,8 @@ And when renaming a column:
 
 As can been seen in the example it is possible to modify column definitions at the same time as a rename but care should be taken to ensure that any data modification (such as ensuring there are no longer null values when is_nullable => 0 is introduced) must be handled via L</Upgrade.pm>.
 
+NOTE: if columns are renamed at the same version that a class/table is renamed (for example a renamed PK) then you MUST also add C<renamed_from> to the column as otherwise data from that column will be lost. In this special situation adding C<since> to the column is not required.
+
 =head2 changes
 
 Column definition changes are handled using the C<changes> token. A hashref is created for each version where the column definition changes which details the new column definition in effect from that change revision. For example:
