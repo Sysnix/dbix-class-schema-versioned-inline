@@ -5,7 +5,7 @@ use Test::Roo;
 use File::Spec;
 use lib File::Spec->catdir( 't', 'lib' );
 use TestVersion::Schema;
-with 'Deploy';
+with 'Role::Deploy';
 
 eval "use DBD::Pg";
 plan skip_all => "DBD::Pg required" if $@;

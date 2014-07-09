@@ -1,4 +1,4 @@
-package Deploy;
+package Role::Deploy;
 
 $ENV{DBIC_NO_VERSION_CHECK} = 1;
 

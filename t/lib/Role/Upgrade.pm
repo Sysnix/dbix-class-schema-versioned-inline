@@ -1,4 +1,4 @@
-package Upgrade;
+package Role::Upgrade;
 
 $ENV{DBIC_NO_VERSION_CHECK} = 1;
 

@@ -6,7 +6,7 @@ use File::Spec;
 use File::Temp;
 use lib File::Spec->catdir( 't', 'lib' );
 use TestVersion::Schema;
-with 'Upgrade';
+with 'Role::Upgrade';
 
 eval "use DBD::SQLite";
 plan skip_all => "DBD::SQLite required" if $@;
