@@ -7,11 +7,14 @@ before '0.002' => sub {
     my $schema = shift;
     my $rset = $schema->resultset('Foo')->search({ height => undef});
     $rset->update({ height => 20});
-    return 1;
 };
 
 after '0.002' => sub {
-    print "foo\n";
+    my $schema = shift;
+    $schema->resultset('Bar')->create({ weight => 20 });
+};
+
+after '0.003' => sub {
     return 1;
 };
 

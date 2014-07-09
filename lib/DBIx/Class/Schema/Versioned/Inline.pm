@@ -278,8 +278,8 @@ sub connection {
     my $self = shift;
     $self->next::method(@_);
 
-    my $conn_info = $self->storage->connect_info;
-    $self->{vschema} = DBIx::Class::Version->connect(@$conn_info);
+    my $connect_info = $self->storage->connect_info;
+    $self->{vschema} = DBIx::Class::Version->connect(@$connect_info);
     my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
 
     my $vtable = $self->{vschema}->resultset('Table');
@@ -375,12 +375,14 @@ sub upgrade_single_step {
 
     my $sqlt_type = $self->storage->sqlt_type;
 
-    # add Upgrade versions
+    # add Upgrade before/after subs
+
     my $upgradeclass = ref($self) . "::Upgrade";
-    my @before_upgrade_subs;
+    my ( @before_upgrade_subs, @after_upgrade_subs );
     eval {
         eval "require $upgradeclass" or return;
         @before_upgrade_subs = $upgradeclass->before_upgrade($target_version);
+        @after_upgrade_subs  = $upgradeclass->after_upgrade($target_version);
     };
 
     # translate current schema
@@ -477,6 +479,10 @@ sub upgrade_single_step {
                             $dbh->do($line);
                         }
                     );
+                }
+                # 'after' steps use $target_schema
+                foreach my $sub (@after_upgrade_subs) {
+                    $sub->($target_schema) or die;
                 }
             }
         );

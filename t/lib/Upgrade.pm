@@ -112,6 +112,7 @@ test 'test 0.002' => sub {
     my $bar = $schema->source('Bar');
     cmp_bag( [ $bar->columns ], [qw(bars_id weight)], "Bar columns OK" );
     cmp_ok( $schema->resultset('Foo')->count, '==', 12, "12 Foos" );
+    cmp_ok( $schema->resultset('Bar')->count, '==', 1, "1 Bar" );
 
     my $aref = $schema->storage->dbh->selectcol_arrayref(
         q(SELECT width FROM foos ORDER BY foos_id ASC));
