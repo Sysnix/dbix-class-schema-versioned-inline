@@ -19,8 +19,8 @@ sub connect_info {
 }
 
 SKIP: {
-    skip "SQLite column rename_from broken in SQL::Translator 0.11018", 1;
+    skip "column rename_from broken in SQLT 0.11018 set NOSKIP ENV to force", 1
+      unless $ENV{NOSKIP};
     run_me;
 };
-
 done_testing;

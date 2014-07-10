@@ -15,10 +15,12 @@ t/deploy-sqlite.t
 t/upgrade-mysql.t
 t/upgrade-pg.t
 t/upgrade-sqlite.t
-t/lib/Deploy.pm
+t/lib/Role/Deploy.pm
+t/lib/Role/MySQL.pm
+t/lib/Role/PostgreSQL.pm
+t/lib/Role/Upgrade.pm
 t/lib/TestVersion/Schema.pm
 t/lib/TestVersion/Schema/Result/Bar.pm
 t/lib/TestVersion/Schema/Result/Foo.pm
 t/lib/TestVersion/Schema/Result/Tree.pm
 t/lib/TestVersion/Schema/Upgrade.pm
-t/lib/Upgrade.pm

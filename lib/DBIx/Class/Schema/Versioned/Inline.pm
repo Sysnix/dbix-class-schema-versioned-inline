@@ -488,9 +488,22 @@ sub upgrade_single_step {
                         }
                     );
                 }
-                # 'after' steps use $target_schema
-                foreach my $sub (@after_upgrade_subs) {
-                    $sub->($target_schema) or die;
+                unless ( $sqlt_type eq 'SQLite' ) {
+                    # FIXME: sadly we can't do this as part of this transaction
+                    # in SQLite - reason still to be determined
+                    foreach my $sub (@after_upgrade_subs) {
+                        $sub->($target_schema) or die;
+                    }
+                }
+            }
+        );
+        $self->txn_do(
+            sub {
+                if ( $sqlt_type eq 'SQLite' ) {
+                    # perform the 'after' steps we were forced to skip earlier
+                    foreach my $sub (@after_upgrade_subs) {
+                        $sub->($target_schema) or die;
+                    }
                 }
             }
         );

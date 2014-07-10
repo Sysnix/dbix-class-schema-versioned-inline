@@ -1,14 +1,13 @@
 #!perl
 
-use Test::Roo;
-
 use File::Spec;
 use lib File::Spec->catdir( 't', 'lib' );
+
+use Test::Roo;
 use TestVersion::Schema;
 with 'Role::PostgreSQL', 'Role::Deploy';
 
-diag "Notice: tests are slow due to repeated database creation.";
+diag "Tests run slowly due to repeated database creation/destruction.";
 
 run_me;
-
 done_testing;
