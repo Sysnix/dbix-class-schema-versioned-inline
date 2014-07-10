@@ -505,7 +505,7 @@ sub upgrade_single_step {
                     $self->storage->dbh_do(
                         sub {
                             my ( $storage, $dbh ) = @_;
-                            #print STDERR $line;
+                            print STDERR $line;
                             $dbh->do($line);
                         }
                     );
@@ -513,10 +513,10 @@ sub upgrade_single_step {
 
                 # Upgrade.pm after
 
-                unless ( $sqlt_type eq 'SQLite' ) {
+                unless ( $sqlt_type =~ /^(PostgreSQL|SQLite)$/ ) {
 
                     # FIXME: sadly we can't do this as part of this transaction
-                    # in SQLite - reason still to be determined
+                    # in Pg & SQLite - reason still to be determined
 
                     foreach my $sub (@after_upgrade_subs) {
                         $sub->($target_schema)
@@ -528,7 +528,7 @@ sub upgrade_single_step {
 
         $self->txn_do(
             sub {
-                if ( $sqlt_type eq 'SQLite' ) {
+                if ( $sqlt_type =~ /^(PostgreSQL|SQLite)$/ ) {
 
                     # FIXME: see comments within transaction above
                     # perform the 'after' steps we were forced to skip earlier
