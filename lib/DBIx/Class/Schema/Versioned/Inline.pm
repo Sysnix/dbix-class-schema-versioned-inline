@@ -419,13 +419,8 @@ sub upgrade_single_step {
         push @$connect_info, undef;
     }
 
-    # drop anything extra
-    while ( scalar @$connect_info > 3 ) {
-        pop @$connect_info;
-    }
-
     # add next version
-    push @$connect_info, { _version => $target_version };
+    $connect_info->[3]->{_version} = $target_version;
 
     my $target_schema = ref($self)->connect(@$connect_info);
 
@@ -473,13 +468,21 @@ sub upgrade_single_step {
     try {
         $self->txn_do(
             sub {
+
+                # Upgrade.pm before
+
                 foreach my $sub (@before_upgrade_subs) {
-                    $sub->($self) or die;
+                    $sub->($self)
+                        or die "Failed upgrade before $target_version sub";
                 }
+
+                # execute SQL one line at a time
+
                 foreach my $line (@diff) {
 
                     # drop comments and BEGIN/COMMIT
                     next if $line =~ /(^--|BEGIN|COMMIT)/;
+
                     $self->storage->dbh_do(
                         sub {
                             my ( $storage, $dbh ) = @_;
@@ -488,21 +491,32 @@ sub upgrade_single_step {
                         }
                     );
                 }
+
+                # Upgrade.pm after
+
                 unless ( $sqlt_type eq 'SQLite' ) {
+
                     # FIXME: sadly we can't do this as part of this transaction
                     # in SQLite - reason still to be determined
+
                     foreach my $sub (@after_upgrade_subs) {
-                        $sub->($target_schema) or die;
+                        $sub->($target_schema)
+                            or die "Failed upgrade after $target_version sub";
                     }
                 }
             }
         );
+
         $self->txn_do(
             sub {
                 if ( $sqlt_type eq 'SQLite' ) {
+
+                    # FIXME: see comments within transaction above
                     # perform the 'after' steps we were forced to skip earlier
+
                     foreach my $sub (@after_upgrade_subs) {
-                        $sub->($target_schema) or die;
+                        $sub->($target_schema)
+                            or die "Failed upgrade after $target_version sub";
                     }
                 }
             }
