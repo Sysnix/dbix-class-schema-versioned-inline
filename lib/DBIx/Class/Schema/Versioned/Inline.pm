@@ -437,17 +437,36 @@ sub upgrade_single_step {
     $target_sqlt->show_warnings(0);
     $target_sqlt->translate;
 
-    # we need to add class (table) renamed_from into $target_sqlt->schema->extra
+    # we need to add renamed_from into $target_sqlt->schema extras
 
     foreach my $source_name ( $target_schema->sources ) {
+
         my $source    = $target_schema->source($source_name);
-        my $versioned = $source->resultset_attributes->{versioned};
+
+        # tables
+
+        my $table       = $target_sqlt->schema->get_table( $source->name );
+        my $versioned   = $source->resultset_attributes->{versioned};
+        my $table_since = $versioned->{since} ? $versioned->{since} : undef;
+
         if (   $versioned
             && $versioned->{renamed_from}
-            && $versioned->{since} eq $target_version )
+            && $table_since eq $target_version )
         {
-            my $table = $target_sqlt->schema->get_table( $source->name );
             $table->extra( renamed_from => $versioned->{renamed_from} );
+        }
+
+        # columns
+
+        foreach my $column ( $source->columns ) {
+            my $versioned = $source->column_info($column)->{versioned};
+            if ( $versioned && $versioned->{renamed_from} ) {
+                my $since = $versioned->{since} || $table_since;
+                if ( $since eq $target_version ) {
+                    my $field = $table->get_field($column);
+                    $field->extra( renamed_from => $versioned->{renamed_from} );
+                }
+            }
         }
     }
 
@@ -583,7 +602,6 @@ sub versioned_schema {
             # handled renamed column
 
             if ( $renamed ) {
-
                 unless ($since) {
 
                     # catch sitation where class has since but renamed_from
@@ -591,20 +609,6 @@ sub versioned_schema {
 
                     my $rsa_ver = $source->resultset_attributes->{versioned};
                     $since = $rsa_ver->{since} if $rsa_ver->{since};
-                }
-
-                if ( $since && $_version eq $since ) {
-
-                    # we need renamed_from to be in "extra" for SQLT
-
-                    $column_info->{extra}->{renamed_from} = $renamed;
-
-                    unless ( $source->remove_column($column)
-                        && $source->add_column( $column => $column_info ) )
-                    {
-                        $self->throw_exception(
-                            "Failed to apply renamed_from for $name");
-                    }
                 }
             }
 
