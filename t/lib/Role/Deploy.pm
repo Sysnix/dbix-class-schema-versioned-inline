@@ -4,6 +4,12 @@ $ENV{DBIC_NO_VERSION_CHECK} = 1;
 
 use Test::Roo::Role;
 use Test::Most;
+use version 0.77;
+
+# DBIC > 008270 adds is_depends_on to relation attrs so we must be careful
+our $DBIC_gt_008270;
+$DBIC_gt_008270 = 1
+  if version->parse($DBIx::Class::VERSION) > version->parse(0.08270);
 
 requires 'connect_info';
 
@@ -127,7 +133,6 @@ test 'deploy v0.002' => sub {
             is_nullable   => 0,
             default_value => 1,
             versioned     => { since => '0.002', renamed_from => 'height' },
-            extra => { renamed_from => 'height' }
         },
     };
     cmp_deeply( $bar->_columns, $bar_columns, "Bar column info OK" );
@@ -211,8 +216,12 @@ test 'deploy v0.003' => sub {
         }
     };
     my $tree_columns = {
-        "trees_id" => { data_type => 'integer', is_auto_increment => 1, versioned => { renamed_from => "foos_id" }, extra => { renamed_from => "foos_id" } },
-        "age"      => { data_type => "integer", is_nullable       => 1 },
+        "trees_id" => {
+            data_type         => 'integer',
+            is_auto_increment => 1,
+            versioned         => { renamed_from => "foos_id" },
+        },
+        "age" => { data_type => "integer", is_nullable => 1 },
         "width" =>
           { data_type => "integer", is_nullable => 0, default_value => 1 },
         "bars_id" =>
@@ -227,7 +236,7 @@ test 'deploy v0.003' => sub {
                 join_type      => "LEFT",
                 versioned      => {
                     since => "0.003"
-                }
+                },
             },
             class => "TestVersion::Schema::Result::Tree",
             cond  => {
@@ -253,6 +262,12 @@ test 'deploy v0.003' => sub {
             source => "TestVersion::Schema::Result::Bar"
         }
     };
+
+    if ($DBIC_gt_008270) {
+        $bar_relations->{trees}->{attrs}->{is_depends_on} = 0;
+        $tree_relations->{bar}->{attrs}->{is_depends_on}  = 1;
+    }
+
     cmp_deeply( $bar->_columns,        $bar_columns,    "Bar column info OK" );
     cmp_deeply( $tree->_columns,       $tree_columns,   "Tree column info OK" );
     cmp_deeply( $bar->_relationships,  $bar_relations,  "Bar relations OK" );
@@ -319,8 +334,12 @@ test 'deploy v0.4' => sub {
         },
     };
     my $tree_columns = {
-        "trees_id" => { data_type => 'integer', is_auto_increment => 1, versioned => { renamed_from => "foos_id" }, extra => { renamed_from => "foos_id" } },
-        "age"      => { data_type => "integer", is_nullable       => 1 },
+        "trees_id" => {
+            data_type         => 'integer',
+            is_auto_increment => 1,
+            versioned         => { renamed_from => "foos_id" },
+        },
+        "age" => { data_type => "integer", is_nullable => 1 },
         "width" =>
           { data_type => "integer", is_nullable => 0, default_value => 1 },
         "bars_id" =>
@@ -335,7 +354,7 @@ test 'deploy v0.4' => sub {
                 join_type      => "LEFT",
                 versioned      => {
                     since => "0.003"
-                }
+                },
             },
             class => "TestVersion::Schema::Result::Tree",
             cond  => {
@@ -361,6 +380,12 @@ test 'deploy v0.4' => sub {
             source => "TestVersion::Schema::Result::Bar"
         }
     };
+
+    if ($DBIC_gt_008270) {
+        $bar_relations->{trees}->{attrs}->{is_depends_on} = 0;
+        $tree_relations->{bar}->{attrs}->{is_depends_on}  = 1;
+    }
+
     cmp_deeply( $bar->_columns,        $bar_columns,    "Bar column info OK" );
     cmp_deeply( $tree->_columns,       $tree_columns,   "Tree column info OK" );
     cmp_deeply( $bar->_relationships,  $bar_relations,  "Bar relations OK" );

@@ -22,3 +22,12 @@ Revision history for DBIx::Class::Schema::Versioned::Inline
 
     * Upgrade.pm 'after' now implemented with basic tests
 
+0.011 Mon Aug  4 14:14:39 CEST 2014
+
+    * ignore versions in Upgrade.pm that do not exist in schema definition
+    * better handling of connect_info in upgrade_single_step
+    * move sqlt extra handling into upgrade_single_step
+    * fix tests for DBIC > 0.08270 (thanks to ribasushi)
+    * Pg & SQLite don't like mixed DDL and data changes in since trans
+    * fix class has since but missing on renamed PK
+    * improved role-based testing
