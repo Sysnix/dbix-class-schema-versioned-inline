@@ -15,7 +15,7 @@ WARNING
     This is BETA software so the usual caveats apply.
 
 VERSION
-    Version 0.010
+    Version 0.011
 
 SYNOPSIS
      package MyApp::Schema;
@@ -224,6 +224,11 @@ DESCRIPTION
     null values when is_nullable => 0 is introduced) must be handled via
     "Upgrade.pm".
 
+    NOTE: if columns are renamed at the same version that a class/table is
+    renamed (for example a renamed PK) then you MUST also add "renamed_from"
+    to the column as otherwise data from that column will be lost. In this
+    special situation adding "since" to the column is not required.
+
   changes
     Column definition changes are handled using the "changes" token. A
     hashref is created for each version where the column definition changes
@@ -322,7 +327,8 @@ AUTHOR
     Peter Mottram (SysPete), "peter@sysnix.com"
 
 CONTRIBUTORS
-    Slaven Rezić (eserte)
+    Slaven Rezić (eserte) Stefan Hornburg (racke) Peter Rabbitson
+    (ribasushi)
 
 BUGS
     This is BETA software so bugs and missing features are expected.
