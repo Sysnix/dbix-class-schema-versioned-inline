@@ -12,7 +12,9 @@ Schema versioning for DBIx::Class with version information embedded inline in th
 
 =head1 WARNING
 
-Although all documented functionality has been implemented it is only possible to use the module currently with MySQL. Tests exist for SQLite and PostgreSQL but upgrade tests are currently broken and so are skipped due to issues with L<SQL::Translator>. I am hoping the SQLT issues can be resolved ASAP.
+Although all documented functionality has been implemented it is only possible to use the module currently with MySQL and SQLite. Tests exist for PostgreSQL but upgrade tests are currently broken and so are skipped due to issues with L<SQL::Translator>. I am hoping the SQLT issues can be resolved ASAP.
+
+We overload L<SQL::Translator::Producer::SQLite/batch_alter_table> since the original method is broken as of L<SQL::Translator> version 0.11018 and without this fix upgrades are prone to fail for SQLite. A GitHub PR exists to address this problem L<https://github.com/dbsrgits/sql-translator/pull/39>.
 
 This is BETA software so the usual caveats apply.
 
@@ -434,7 +436,7 @@ sub upgrade_single_step {
 
     foreach my $source_name ( $target_schema->sources ) {
 
-        my $source    = $target_schema->source($source_name);
+        my $source = $target_schema->source($source_name);
 
         # tables
 
@@ -485,7 +487,7 @@ sub upgrade_single_step {
 
                 foreach my $sub (@before_upgrade_subs) {
                     $sub->($self)
-                        or die "Failed upgrade before $target_version sub";
+                      or die "Failed upgrade before $target_version sub";
                 }
 
                 # execute SQL one line at a time
@@ -512,7 +514,7 @@ sub upgrade_single_step {
 
                     foreach my $sub (@after_upgrade_subs) {
                         $sub->($target_schema)
-                            or die "Failed upgrade after $target_version sub";
+                          or die "Failed upgrade after $target_version sub";
                     }
                 }
             }
@@ -527,7 +529,7 @@ sub upgrade_single_step {
 
                     foreach my $sub (@after_upgrade_subs) {
                         $sub->($target_schema)
-                            or die "Failed upgrade after $target_version sub";
+                          or die "Failed upgrade after $target_version sub";
                     }
                 }
             }
@@ -593,7 +595,7 @@ sub versioned_schema {
 
             # handled renamed column
 
-            if ( $renamed ) {
+            if ($renamed) {
                 unless ($since) {
 
                     # catch sitation where class has since but renamed_from
@@ -778,5 +780,160 @@ This program is free software; you can redistribute it and/or modify it under th
 See http://dev.perl.org/licenses/ for more information.
 
 =cut
+
+# FIXME: patch broken batch_alter_table from SQL::Translator::Producer::SQLite
+{
+    use SQL::Translator::Producer::SQLite;
+
+    package SQL::Translator::Producer::SQLite;
+
+    sub _quote {
+        return _generator()->quote(shift);
+    }
+
+    no warnings 'redefine';
+
+    sub batch_alter_table {
+        my ( $table, $diffs ) = @_;
+
+      # If we have any of the following
+      #
+      #  rename_field
+      #  alter_field
+      #  drop_field
+      #
+      # we need to do the following <http://www.sqlite.org/faq.html#q11>
+      #
+      # BEGIN TRANSACTION;
+      # CREATE TEMPORARY TABLE t1_backup(a,b);
+      # INSERT INTO t1_backup SELECT a,b FROM t1;
+      # DROP TABLE t1;
+      # CREATE TABLE t1(a,b);
+      # INSERT INTO t1 SELECT a,b FROM t1_backup;
+      # DROP TABLE t1_backup;
+      # COMMIT;
+      #
+      # Fun, eh?
+      #
+      # If we have rename_field we do similarly.
+      #
+      # We create the temporary table as a copy of the new table, copy all data
+      # to temp table, create new table and then copy as appropriate taking note
+      # of renamed fields.
+
+        my $table_name = $table->name;
+
+        if (   @{ $diffs->{rename_field} } == 0
+            && @{ $diffs->{alter_field} } == 0
+            && @{ $diffs->{drop_field} } == 0 )
+        {
+            return map {
+                my $meth = __PACKAGE__->can($_)
+                  or die __PACKAGE__ . " cant $_";
+                map {
+                    my $sql = $meth->( ref $_ eq 'ARRAY' ? @$_ : $_ );
+                    $sql ? ("$sql") : ()
+                  } @{ $diffs->{$_} }
+
+              } grep { @{ $diffs->{$_} } } qw/rename_table
+              alter_drop_constraint
+              alter_drop_index
+              drop_field
+              add_field
+              alter_field
+              rename_field
+              alter_create_index
+              alter_create_constraint
+              alter_table/;
+        }
+
+        my @sql;
+
+        # $table is the new table but we may need an old one
+        # TODO: this is NOT very well tested at the moment so add more tests
+
+        my $old_table = $table;
+
+        if ( $diffs->{rename_table} && @{ $diffs->{rename_table} } ) {
+            $old_table = $diffs->{rename_table}[0][0];
+        }
+
+        my $temp_table_name = _quote( $table_name . '_temp_alter' );
+
+        # CREATE TEMPORARY TABLE t1_backup(a,b);
+
+        my %temp_table_fields;
+        do {
+            local $table->{name} = $temp_table_name;
+
+            # We only want the table - don't care about indexes on tmp table
+            my ($table_sql) = create_table( $table,
+                { no_comments => 1, temporary_table => 1 } );
+            push @sql, $table_sql;
+
+            %temp_table_fields = map { $_ => 1 } $table->get_fields;
+        };
+
+        # record renamed fields for later
+        my %rename_field;
+        if ( @{ $diffs->{rename_field} } ) {
+            foreach my $rf_diff ( @{ $diffs->{rename_field} } ) {
+
+                # newname => oldname
+                $rename_field{ $rf_diff->[1]->name } = $rf_diff->[0]->name;
+            }
+        }
+
+        # drop added fields from %temp_table_fields
+        if ( @{ $diffs->{add_field} } ) {
+            foreach my $af_diff ( @{ $diffs->{add_field} } ) {
+                delete $temp_table_fields{ $af_diff->name };
+            }
+        }
+
+        # INSERT INTO t1_backup SELECT a,b FROM t1;
+
+        push @sql, sprintf(
+            'INSERT INTO %s (%s) SELECT %s FROM %s',
+
+            _quote($temp_table_name),
+
+            join( ', ',
+                map _quote($_),
+                grep { $temp_table_fields{$_} } $table->get_fields ),
+
+            join( ', ',
+                map _quote($_),
+                map { $rename_field{$_} ? $rename_field{$_} : $_ }
+                  grep { $temp_table_fields{$_} } $table->get_fields ),
+
+            _quote( $old_table->name )
+        );
+
+        # DROP TABLE t1;
+
+        push @sql, sprintf( 'DROP TABLE %s', _quote( $old_table->name ) );
+
+        # CREATE TABLE t1(a,b);
+
+        push @sql, create_table( $table, { no_comments => 1 } );
+
+        # INSERT INTO t1 SELECT a,b FROM t1_backup;
+
+        push @sql,
+          sprintf(
+            'INSERT INTO %s SELECT %s FROM %s',
+            _quote($table_name),
+            join( ', ', map _quote($_), $table->get_fields ),
+            _quote($temp_table_name)
+          );
+
+        # DROP TABLE t1_backup;
+
+        push @sql, sprintf( 'DROP TABLE %s', _quote($temp_table_name) );
+
+        return wantarray ? @sql : join( ";\n", @sql );
+    }
+}
 
 1;

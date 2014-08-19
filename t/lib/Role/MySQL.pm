@@ -11,8 +11,9 @@ plan skip_all => "Test::mysqld required" if $@;
 
 sub _build_database {
     my $self = shift;
+    no warnings 'once'; # prevent: "Test::mysqld::errstr" used only once
     my $mysqld = Test::mysqld->new( my_cnf => { 'skip-networking' => '' } )
-      or die;
+      or die $Test::mysqld::errstr;
     return $mysqld;
 }
 

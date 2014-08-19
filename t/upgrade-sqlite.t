@@ -18,9 +18,6 @@ sub connect_info {
     return ( "dbi:SQLite:dbname=$dbfile" );
 }
 
-SKIP: {
-    skip "column rename_from broken in SQLT 0.11018 set NOSKIP ENV to force", 1
-      unless $ENV{NOSKIP};
-    run_me;
-};
+run_me;
+
 done_testing;
