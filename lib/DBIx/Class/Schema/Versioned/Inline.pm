@@ -289,8 +289,6 @@ sub connection {
     # uncoverable condition right
     my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
 
-    my $vtable = $self->{vschema}->resultset('Table');
-
     my $version = $conn_attrs->{_version} || $self->get_db_version();
 
     unless ($version) {
