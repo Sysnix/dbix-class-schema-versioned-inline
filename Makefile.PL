@@ -24,7 +24,7 @@ WriteMakefile(
     },
     PREREQ_PM => {
         'DBIx::Class'     => 0.08270,
-        'SQL::Translator' => 0.11018,
+        'SQL::Translator' => 0.11019,
         'Try::Tiny'       => 0.18,
         'version'         => 0.9902,
     },
