@@ -39,8 +39,8 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key('bars_id');
 
 __PACKAGE__->has_many(
-    'trees', 'TestVersion::Schema::Result::Tree',
-    'trees_id', { versioned => { since => '0.003' } },
+    trees => 'TestVersion::Schema::Result::Tree',
+    'bars_id', { versioned => { since => '0.003' } },
 );
 
 __PACKAGE__->resultset_attributes( { versioned => { since => '0.002' } } );

@@ -234,7 +234,7 @@ test 'deploy v0.003' => sub {
             },
             class => "TestVersion::Schema::Result::Tree",
             cond  => {
-                "foreign.trees_id" => "self.bars_id"
+                "foreign.bars_id" => "self.bars_id"
             },
             source => "TestVersion::Schema::Result::Tree"
         }
@@ -353,7 +353,7 @@ test 'deploy v0.4' => sub {
             },
             class => "TestVersion::Schema::Result::Tree",
             cond  => {
-                "foreign.trees_id" => "self.bars_id"
+                "foreign.bars_id" => "self.bars_id"
             },
             source => "TestVersion::Schema::Result::Tree"
         }
