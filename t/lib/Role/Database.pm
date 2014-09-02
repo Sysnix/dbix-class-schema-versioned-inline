@@ -97,6 +97,7 @@ before setup => sub {
     diag "using: " . $self->dbd_version;
     diag "db: " . $self->database_info;
     diag "DBIC: " . $DBIx::Class::VERSION;
+    diag "SQLT: " . $SQL::Translator::VERSION;
 };
 
 1;

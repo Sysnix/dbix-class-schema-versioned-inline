@@ -16,12 +16,12 @@ test 'deploy v0.001' => sub {
     my $self = shift;
     $self->clear_database;
 
-    diag "running Test::Deploy with " . $self->schema_class;
+    diag "Test::Deploy with " . $self->schema_class;
 
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.001' };
 
-    my $schema = TestVersion::Schema->connect( $self->connect_info );
+    my $schema = $self->schema_class->connect( $self->connect_info );
 
     my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.4' );
 
@@ -67,7 +67,7 @@ test 'deploy v0.002' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.002' };
 
-    my $schema = TestVersion::Schema->connect( $self->connect_info );
+    my $schema = $self->schema_class->connect( $self->connect_info );
 
     my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.4' );
 
@@ -139,7 +139,7 @@ test 'deploy v0.003' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.003' };
 
-    my $schema = TestVersion::Schema->connect( $self->connect_info );
+    my $schema = $self->schema_class->connect( $self->connect_info );
 
     my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.4' );
 
@@ -232,11 +232,11 @@ test 'deploy v0.003' => sub {
                     since => "0.003"
                 },
             },
-            class => "TestVersion::Schema::Result::Tree",
+            class => $self->schema_class . "::Result::Tree",
             cond  => {
                 "foreign.bars_id" => "self.bars_id"
             },
-            source => "TestVersion::Schema::Result::Tree"
+            source => $self->schema_class . "::Result::Tree"
         }
     };
     my $tree_relations = {
@@ -249,11 +249,11 @@ test 'deploy v0.003' => sub {
                 is_foreign_key_constraint => 1,
                 undef_on_null_fk          => 1,
             },
-            class => "TestVersion::Schema::Result::Bar",
+            class => $self->schema_class . "::Result::Bar",
             cond  => {
                 "foreign.bars_id" => "self.bars_id"
             },
-            source => "TestVersion::Schema::Result::Bar"
+            source => $self->schema_class . "::Result::Bar"
         }
     };
 
@@ -275,7 +275,7 @@ test 'deploy v0.4' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.4' };
 
-    my $schema = TestVersion::Schema->connect( $self->connect_info );
+    my $schema = $self->schema_class->connect( $self->connect_info );
 
     my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.4' );
 
@@ -351,11 +351,11 @@ test 'deploy v0.4' => sub {
                     since => "0.003"
                 },
             },
-            class => "TestVersion::Schema::Result::Tree",
+            class => $self->schema_class . "::Result::Tree",
             cond  => {
                 "foreign.bars_id" => "self.bars_id"
             },
-            source => "TestVersion::Schema::Result::Tree"
+            source => $self->schema_class . "::Result::Tree"
         }
     };
     my $tree_relations = {
@@ -368,11 +368,11 @@ test 'deploy v0.4' => sub {
                 is_foreign_key_constraint => 1,
                 undef_on_null_fk          => 1,
             },
-            class => "TestVersion::Schema::Result::Bar",
+            class => $self->schema_class . "::Result::Bar",
             cond  => {
                 "foreign.bars_id" => "self.bars_id"
             },
-            source => "TestVersion::Schema::Result::Bar"
+            source => $self->schema_class . "::Result::Bar"
         }
     };
 

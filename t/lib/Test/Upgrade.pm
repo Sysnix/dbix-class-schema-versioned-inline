@@ -19,7 +19,7 @@ after each_test => sub {
 test 'deploy 0.001' => sub {
     my $self = shift;
 
-    diag "running Test::Upgrade with " . $self->schema_class;
+    diag "Test::Upgrade with " . $self->schema_class;
 
     # paranoia: we might not be the first test
     $self->clear_database;
@@ -27,7 +27,7 @@ test 'deploy 0.001' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.001' };
 
-    my $schema = TestVersion::Schema->connect( $self->connect_info );
+    my $schema = $self->schema_class->connect( $self->connect_info );
 
     lives_ok( sub { $schema->deploy }, "deploy schema" );
 
@@ -65,7 +65,7 @@ test 'upgrade to 0.002' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.002' };
 
-    my $schema = TestVersion::Schema->connect( $self->connect_info );
+    my $schema = $self->schema_class->connect( $self->connect_info );
 
     cmp_ok( $schema->schema_version, 'eq', '0.002', "Check schema version" );
     cmp_ok( $schema->get_db_version, 'eq', '0.001', "Check db version" );
@@ -121,7 +121,7 @@ test 'upgrade to 0.003' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.003' };
 
-    my $schema = TestVersion::Schema->connect( $self->connect_info );
+    my $schema = $self->schema_class->connect( $self->connect_info );
 
     cmp_ok( $schema->schema_version, 'eq', '0.003', "Check schema version" );
     cmp_ok( $schema->get_db_version, 'eq', '0.002', "Check db version" );
@@ -183,7 +183,7 @@ test 'upgrade to 0.4' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.4' };
 
-    my $schema = TestVersion::Schema->connect( $self->connect_info );
+    my $schema = $self->schema_class->connect( $self->connect_info );
 
     cmp_ok( $schema->schema_version, 'eq', '0.4', "Check schema version" );
     cmp_ok( $schema->get_db_version, 'eq', '0.003', "Check db version" );
