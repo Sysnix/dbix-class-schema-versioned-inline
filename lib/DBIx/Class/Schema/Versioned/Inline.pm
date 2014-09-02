@@ -495,6 +495,13 @@ sub upgrade_single_step {
                     $self->storage->dbh_do(
                         sub {
                             my ( $storage, $dbh ) = @_;
+                            if ( $sqlt_type eq 'SQLite' ) {
+                                # FIXME: SQLite barfs on FK constraints
+                                # during temp table copy
+                                if ( $line =~ /CREATE TEMPORARY TABLE/ ) {
+                                    $line =~ s/,\n\s*FOREIGN KEY.+?\n/\n/;
+                                }
+                            }
                             $dbh->do($line);
                         }
                     );

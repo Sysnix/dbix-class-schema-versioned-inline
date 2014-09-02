@@ -33,8 +33,7 @@ sub connect_info {
     my $self = shift;
 
     return ( "dbi:SQLite:dbname=$dbfile", undef, undef,
-        { sqlite_unicode => 1 } );
-    #{ sqlite_unicode => 1, on_connect_call => 'use_foreign_keys' } );
+    { sqlite_unicode => 1, on_connect_call => 'use_foreign_keys' } );
 }
 
 sub _build_database_info {
