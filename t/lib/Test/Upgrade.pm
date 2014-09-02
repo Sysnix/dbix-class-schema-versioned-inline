@@ -1,4 +1,4 @@
-package Role::Upgrade;
+package Test::Upgrade;
 
 $ENV{DBIC_NO_VERSION_CHECK} = 1;
 
@@ -11,19 +11,6 @@ use SQL::Translator;
 
 my $sqlt_version = SQL::Translator->VERSION;
 
-requires 'connect_info';
-
-has database => (
-    is      => 'lazy',
-    clearer => 1,
-);
-
-before each_test => sub {
-    my $self = shift;
-
-    #print Dumper($self);
-};
-
 after each_test => sub {
     my $self = shift;
     Class::Unload->unload('Test::Schema');
@@ -31,6 +18,11 @@ after each_test => sub {
 
 test 'deploy 0.001' => sub {
     my $self = shift;
+
+    diag "running Test::Upgrade with " . $self->schema_class;
+
+    # paranoia: we might not be the first test
+    $self->clear_database;
 
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.001' };
@@ -185,60 +177,6 @@ test 'test 0.003' => sub {
     );# || diag Dumper $aref;
 };
 
-test 'upgrade to 0.3' => sub {
-    my $self = shift;
-
-    no warnings 'redefine';
-    local *DBIx::Class::Schema::schema_version = sub { '0.3' };
-
-    my $schema = TestVersion::Schema->connect( $self->connect_info );
-
-    cmp_ok( $schema->schema_version, 'eq', '0.3',   "Check schema version" );
-    cmp_ok( $schema->get_db_version, 'eq', '0.003', "Check db version" );
-
-    # let's upgrade!
-
-    lives_ok(
-        sub { $schema->upgrade },
-        "Upgrade " . $schema->get_db_version . " to " . $schema->schema_version
-    );
-
-    cmp_ok( $schema->get_db_version, 'eq', '0.3',
-        "Check db version post upgrade" );
-};
-
-test 'test 0.3' => sub {
-    my $self = shift;
-
-    make_schema_at(
-        'Test::Schema',
-        {
-            exclude => qr/dbix_class_schema_versions/,
-            naming  => 'current',
-        },
-        [ $self->connect_info ],
-    );
-
-    my $schema = 'Test::Schema';
-
-    cmp_bag( [ $schema->sources ], [qw(Tree Bar)], "Tree and Bar" )
-      or diag Dumper( $schema->sources );
-
-    # columns
-    my $tree = $schema->source('Tree');
-    cmp_bag(
-        [ Test::Schema::Result::Tree->columns ],
-        [qw(trees_id age bars_id width)],
-        "Tree columns OK"
-    );
-    my $bar = $schema->source('Bar');
-    cmp_bag(
-        [ $bar->columns ],
-        [qw(age bars_id height weight)],
-        "Bar columns OK"
-    );
-};
-
 test 'upgrade to 0.4' => sub {
     my $self = shift;
 
@@ -248,7 +186,7 @@ test 'upgrade to 0.4' => sub {
     my $schema = TestVersion::Schema->connect( $self->connect_info );
 
     cmp_ok( $schema->schema_version, 'eq', '0.4', "Check schema version" );
-    cmp_ok( $schema->get_db_version, 'eq', '0.3', "Check db version" );
+    cmp_ok( $schema->get_db_version, 'eq', '0.003', "Check db version" );
 
     # let's upgrade!
 

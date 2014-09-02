@@ -1,4 +1,4 @@
-package Role::Deploy;
+package Test::Deploy;
 
 $ENV{DBIC_NO_VERSION_CHECK} = 1;
 
@@ -7,24 +7,16 @@ use Test::Most;
 use version 0.77;
 
 # DBIC > 008270 adds is_depends_on to relation attrs so we must be careful
+use DBIx::Class;
 our $DBIC_gt_008270;
 $DBIC_gt_008270 = 1
   if version->parse($DBIx::Class::VERSION) > version->parse(0.08270);
 
-requires 'connect_info';
-
-has database => (
-    is      => 'lazy',
-    clearer => 1,
-);
-
-after each_test => sub {
-    my $self = shift;
-    $self->clear_database;
-};
-
 test 'deploy v0.001' => sub {
     my $self = shift;
+    $self->clear_database;
+
+    diag "running Test::Deploy with " . $self->schema_class;
 
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.001' };
@@ -70,6 +62,7 @@ test 'deploy v0.001' => sub {
 
 test 'deploy v0.002' => sub {
     my $self = shift;
+    $self->clear_database;
 
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.002' };
@@ -141,6 +134,7 @@ test 'deploy v0.002' => sub {
 
 test 'deploy v0.003' => sub {
     my $self = shift;
+    $self->clear_database;
 
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.003' };
@@ -276,6 +270,7 @@ test 'deploy v0.003' => sub {
 
 test 'deploy v0.4' => sub {
     my $self = shift;
+    $self->clear_database;
 
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.4' };
