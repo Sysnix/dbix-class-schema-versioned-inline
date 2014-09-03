@@ -57,14 +57,28 @@ The equivalent of:
   __PACKAGE__->resultset_attributes(
       { versioned => { until => $version } } );
 
-=head2 renamed_from $old_name
+=head2 renamed_from $old_class
 
 The equivalent of:
 
   __PACKAGE__->resultset_attributes(
       { versioned =>
-          { since => $version, renamed_from => $old_name }
+          { since => $version, renamed_from => $old_table }
       });
+
+NOTE: when using the Candy version of L</renamed_from> the argument can be the name of the resultset class (actually the source_name) rather than the old table name so the following would be equivalent:
+
+  
+  __PACKAGE__->resultset_attributes(
+      { versioned =>
+          { since => '1.4', renamed_from => 'foos' }
+      });
+
+
+  since '1.4';
+  renamed_from 'Foo';
+
+The reasoning here is that if you user autotables => 1 then you might not know the old table name.
 
 =cut
 
@@ -81,6 +95,16 @@ sub _set_attr {
     my $attrs = $self->resultset_attributes;
     $attrs->{versioned}->{$key} = $value;
     $self->resultset_attributes( $attrs );
+}
+
+sub ___renamed_from {
+    my ( $self, $old_class ) = @_;
+    use Data::Dumper::Concise;
+    print STDERR Dumper($self);
+    use Class::Inspector;
+    print STDERR Dumper(Class::Inspector->methods($self));
+    my $old_table = $self->result_source_instance->schema->resultset($old_class)->result_source->name;
+    $self->_set_attr( renamed_from => $old_table );
 }
 
 sub renamed_from {

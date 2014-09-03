@@ -1,10 +1,11 @@
 Revision history for DBIx::Class::Schema::Versioned::Inline
 
-0.020 Wed Aug 20 09:52:43 CEST 2014
+0.020 Wed Sep  3 15:34:15 CEST 2014
 
     * New SQL::Translator release allows upgrades to work for SQLite and Pg.
       Many thanks to ilmari for assistance in getting patches into SQLT.
     * Start on TODO list in pod.
+    * Add Candy component along with tests and required changes.
 
 0.011 Mon Aug  4 14:14:39 CEST 2014
 

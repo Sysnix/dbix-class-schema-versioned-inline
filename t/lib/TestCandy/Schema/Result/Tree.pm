@@ -2,7 +2,7 @@ package TestCandy::Schema::Result::Tree;
 use TestCandy::Schema::Candy;
 
 since '0.003';
-renamed_from 'foos';
+renamed_from 'Foo';
 
 primary_column trees_id => {
     data_type         => 'integer',

@@ -436,15 +436,22 @@ sub upgrade_single_step {
 
         # tables
 
-        my $table       = $target_sqlt->schema->get_table( $source->name );
-        my $versioned   = $source->resultset_attributes->{versioned};
-        my $table_since = $versioned->{since};
+        my $table        = $target_sqlt->schema->get_table( $source->name );
+        my $versioned    = $source->resultset_attributes->{versioned};
+        my $table_since  = $versioned->{since};
+        my $renamed_from = $versioned->{renamed_from};
 
         if (   $versioned
-            && $versioned->{renamed_from}
+            && $renamed_from
             && $table_since eq $target_version )
         {
-            $table->extra( renamed_from => $versioned->{renamed_from} );
+            my $rset = $self->resultset($renamed_from);
+            if ( $rset && $rset->result_source->source_name eq $renamed_from ) {
+
+                # $renamed_from smells like class name rather than table
+                $renamed_from = $rset->result_source->name;
+            }
+            $table->extra( renamed_from => $renamed_from );
         }
 
         # columns
