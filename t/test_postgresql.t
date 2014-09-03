@@ -4,6 +4,7 @@ use File::Spec;
 use lib File::Spec->catdir( 't', 'lib' );
 use Module::Find;
 use Test::Roo;
+use TestVersion::Schema;
 
 my @test_roles;
 
