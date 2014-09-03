@@ -580,10 +580,21 @@ sub versioned_schema {
             my $column_info = $source->column_info($column);
             my $versioned   = $column_info->{versioned};
 
-            my $until   = $versioned->{until};
-            my $since   = $versioned->{since};
-            my $changes = $versioned->{changes};
-            my $renamed = $versioned->{renamed_from};
+            my ( $changes, $renamed, $since, $until );
+            if ( $versioned ) {
+                $changes = $versioned->{changes};
+                $renamed = $versioned->{renamed_from};
+                $since   = $versioned->{since};
+                $until   = $versioned->{until};
+                $until   = $versioned->{till} if defined $versioned->{till};
+            }
+            else {
+                $changes = $column_info->{changes};
+                $renamed = $column_info->{renamed_from};
+                $since   = $column_info->{since};
+                $until   = $column_info->{until};
+                $until   = $column_info->{till} if defined $column_info->{till};
+            }
 
             # handle since/until first
 
@@ -651,10 +662,18 @@ sub versioned_schema {
 
             my $versioned = $attrs->{versioned};
 
-            next unless defined $versioned;
-
-            my $since = $versioned->{since};
-            my $until = $versioned->{until};
+            # TODO: changes/renamed_from for relations?
+            my ( $since, $until );
+            if ( $versioned ) {
+                $since   = $versioned->{since};
+                $until   = $versioned->{until};
+                $until   = $versioned->{till} if defined $versioned->{till};
+            }
+            else {
+                $since   = $attrs->{since};
+                $until   = $attrs->{until};
+                $until   = $attrs->{till} if defined $attrs->{till};
+            }
 
             my $name = "$source_name relationship $relation_name";
             my $sub  = sub {
@@ -696,7 +715,7 @@ sub _since_until {
         push @schema_versions, $since;
     }
     if ($until) {
-        $self->throw_exception("Bad until $until for $name")
+        $self->throw_exception("Bad till/until $until for $name")
           unless version::is_lax($until);
         push @schema_versions, $until;
     }
@@ -716,6 +735,10 @@ sub _since_until {
         $sub->($thing);
     }
 }
+
+=head1 CANDY
+
+See L<DBIx::Class::Schema::Versioned::Inline::Candy>.
 
 =head1 CAVEATS
 

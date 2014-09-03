@@ -7,7 +7,7 @@ renamed_from 'foos';
 primary_column trees_id => {
     data_type         => 'integer',
     is_auto_increment => 1,
-    versioned         => { renamed_from => 'foos_id' }
+    renamed_from      => 'foos_id',
 };
 
 column age => { data_type => "integer", is_nullable => 1 };
