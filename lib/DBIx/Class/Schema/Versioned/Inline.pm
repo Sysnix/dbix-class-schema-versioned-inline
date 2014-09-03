@@ -445,11 +445,11 @@ sub upgrade_single_step {
             && $renamed_from
             && $table_since eq $target_version )
         {
-            my $rset = $self->resultset($renamed_from);
-            if ( $rset && $rset->result_source->source_name eq $renamed_from ) {
+            if ( grep { $_ eq $renamed_from } $self->sources ) {
 
                 # $renamed_from smells like class name rather than table
-                $renamed_from = $rset->result_source->name;
+                $renamed_from =
+                  $self->resultset($renamed_from)->result_source->name;
             }
             $table->extra( renamed_from => $renamed_from );
         }

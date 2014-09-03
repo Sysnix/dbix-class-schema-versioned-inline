@@ -3,6 +3,7 @@
 ^.*.bak
 ^.*.old
 ^.*.swp
+^upgrade_test.*
 .gitignore
 .travis.yml
 lib/Interchange6/Schema/Result/t
