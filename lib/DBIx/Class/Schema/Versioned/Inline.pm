@@ -286,6 +286,7 @@ sub connection {
 
     my $connect_info = $self->storage->connect_info;
     $self->{vschema} = DBIx::Class::Version->connect(@$connect_info);
+
     # uncoverable condition right
     my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
 
@@ -437,7 +438,7 @@ sub upgrade_single_step {
 
         my $table       = $target_sqlt->schema->get_table( $source->name );
         my $versioned   = $source->resultset_attributes->{versioned};
-        my $table_since = $versioned->{since} ? $versioned->{since} : undef;
+        my $table_since = $versioned->{since};
 
         if (   $versioned
             && $versioned->{renamed_from}
@@ -449,12 +450,16 @@ sub upgrade_single_step {
         # columns
 
         foreach my $column ( $source->columns ) {
-            my $versioned = $source->column_info($column)->{versioned};
-            if ( $versioned && $versioned->{renamed_from} ) {
-                my $since = $versioned->{since} || $table_since;
+            my $column_info = $source->column_info($column);
+            my $versioned   = $column_info->{versioned};
+            my $renamed =
+              $versioned->{renamed_from} || $column_info->{renamed_from};
+            if ($renamed) {
+                my $since =
+                  $versioned->{since} || $column_info->{since} || $table_since;
                 if ( $since eq $target_version ) {
                     my $field = $table->get_field($column);
-                    $field->extra( renamed_from => $versioned->{renamed_from} );
+                    $field->extra( renamed_from => $renamed );
                 }
             }
         }
@@ -496,6 +501,7 @@ sub upgrade_single_step {
                         sub {
                             my ( $storage, $dbh ) = @_;
                             if ( $sqlt_type eq 'SQLite' ) {
+
                                 # FIXME: SQLite barfs on FK constraints
                                 # during temp table copy
                                 if ( $line =~ /CREATE TEMPORARY TABLE/ ) {
@@ -581,7 +587,7 @@ sub versioned_schema {
             my $versioned   = $column_info->{versioned};
 
             my ( $changes, $renamed, $since, $until );
-            if ( $versioned ) {
+            if ($versioned) {
                 $changes = $versioned->{changes};
                 $renamed = $versioned->{renamed_from};
                 $since   = $versioned->{since};
@@ -664,15 +670,15 @@ sub versioned_schema {
 
             # TODO: changes/renamed_from for relations?
             my ( $since, $until );
-            if ( $versioned ) {
-                $since   = $versioned->{since};
-                $until   = $versioned->{until};
-                $until   = $versioned->{till} if defined $versioned->{till};
+            if ($versioned) {
+                $since = $versioned->{since};
+                $until = $versioned->{until};
+                $until = $versioned->{till} if defined $versioned->{till};
             }
             else {
-                $since   = $attrs->{since};
-                $until   = $attrs->{until};
-                $until   = $attrs->{till} if defined $attrs->{till};
+                $since = $attrs->{since};
+                $until = $attrs->{until};
+                $until = $attrs->{till} if defined $attrs->{till};
             }
 
             my $name = "$source_name relationship $relation_name";

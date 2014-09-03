@@ -2,11 +2,69 @@ package DBIx::Class::Schema::Versioned::Inline::Candy;
 use warnings;
 use strict;
 
-use Data::Dumper::Concise;
-
 =head1 NAME
 
 DBIx::Class::Schema::Versioned::Inline::Candy - add Candy to result classes
+
+=head1 SYNOPSIS
+
+  package MyApp::Schema::Candy;
+  use base 'DBIx::Class::Candy';
+
+  sub base { $_[1] || 'DBIx::Class::Core' }
+  sub autotable { 1 }
+
+  sub parse_arguments {
+      my $self = shift;
+      my $args = $self->next::method(@_);
+      push @{$args->{components}}, 'Schema::Versioned::Inline::Candy';
+      return $args;
+  }
+
+  ...
+
+  package MyApp::Schema::Result::Foo;
+  use MyApp::Schema::Candy -components => ['SomeExtraComponent'];
+
+  since '0.2',
+  renamed_from 'Bar';
+
+  column age =>
+      { data_type => "integer", is_nullable => 1, till => '0.7' };
+
+  ...
+
+  package MyApp::Schema::Result::Bar;
+  use MyApp::Schema::Candy -components => ['SomeExtraComponent'];
+
+  till '0.2',
+
+=head1 CANDY EXPORTS
+
+If used in conjunction with DBIx::Class::Candy this component will export:
+
+=head2 since $version
+
+The equivalent of:
+
+  __PACKAGE__->resultset_attributes(
+      { versioned => { since => $version } } );
+
+=head2 till $version
+
+The equivalent of:
+
+  __PACKAGE__->resultset_attributes(
+      { versioned => { until => $version } } );
+
+=head2 renamed_from $old_name
+
+The equivalent of:
+
+  __PACKAGE__->resultset_attributes(
+      { versioned =>
+          { since => $version, renamed_from => $old_name }
+      });
 
 =cut
 
