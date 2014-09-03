@@ -765,6 +765,10 @@ Please anticipate API changes in this early state of development.
 
 =item * Index renaming for auto-created indexes for UCs, etc - Pg + others?
 
+=item * Downgrades
+
+=item * Schema validation
+
 =back
 
 =head1 AUTHOR

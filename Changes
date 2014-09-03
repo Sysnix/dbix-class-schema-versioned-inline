@@ -1,6 +1,6 @@
 Revision history for DBIx::Class::Schema::Versioned::Inline
 
-0.020 Wed Sep  3 15:34:15 CEST 2014
+0.020 Wed Sep  3 17:14:11 CEST 2014
 
     * New SQL::Translator release allows upgrades to work for SQLite and Pg.
       Many thanks to ilmari for assistance in getting patches into SQLT.
