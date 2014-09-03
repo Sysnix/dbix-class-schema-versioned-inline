@@ -97,16 +97,6 @@ sub _set_attr {
     $self->resultset_attributes( $attrs );
 }
 
-sub ___renamed_from {
-    my ( $self, $old_class ) = @_;
-    use Data::Dumper::Concise;
-    print STDERR Dumper($self);
-    use Class::Inspector;
-    print STDERR Dumper(Class::Inspector->methods($self));
-    my $old_table = $self->result_source_instance->schema->resultset($old_class)->result_source->name;
-    $self->_set_attr( renamed_from => $old_table );
-}
-
 sub renamed_from {
     shift->_set_attr( renamed_from => shift );
 }
