@@ -10,6 +10,5 @@ perl:
   - "5.8"
 install:
   - cpanm --quiet --notest Module::Install Module::Install::ReadmeFromPod Module::Install::AuthorTests Package::Variant DBI XML::LibXML
-  - cpanm --notest git://github.com/SysPete/sql-translator.git@topic/producer_postgresql_batch_alter_table || cat /home/travis/.cpanm/work/*/build.log
-  - cpanm --quiet --notest DBD::Pg http://cpan.metacpan.org/authors/id/T/TJ/TJC/Test-PostgreSQL-1.02.tar.gz DBD::mysql Test::mysqld
+  - cpanm --quiet --notest DBD::Pg http://cpan.metacpan.org/authors/id/T/TJ/TJC/Test-PostgreSQL-1.02.tar.gz DBD::mysql Test::mysqld DateTime::Format::Pg DateTime::Format::MySQL DBIx::Class::Candy
   - cpanm --quiet --installdeps --notest .

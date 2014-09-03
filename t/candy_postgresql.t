@@ -5,6 +5,9 @@ use lib File::Spec->catdir( 't', 'lib' );
 use Module::Find;
 use Test::Roo;
 
+eval "use DBIx::Class::Candy";
+plan skip_all => "DBIx::Class::Candy required" if $@;
+
 my @test_roles;
 
 if ( $ENV{TEST_ROLE_ONLY} ) {
