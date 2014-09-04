@@ -315,6 +315,26 @@ Inherited method. Same as L<DBIx::Class::Schema/deploy> but also calls C<install
 
 Inherited method. Call this to initialise a previously unversioned database.
 
+=head2 schema_first_version
+
+Returns the current schema class' $FIRST_VERSION in a normalised way.
+
+If the schema does not define $FIRST_VERSION then all resultsets must specify the version at which they were added using L</since>.
+
+=cut
+
+sub schema_first_version {
+    my ($self) = @_;
+    my $class = ref($self)||$self;
+
+    my $version;
+    {
+        no strict 'refs';
+        $version = ${"${class}::FIRST_VERSION"};
+    }
+    return $version;
+}
+
 =head2 ordered_schema_versions
 
 Overloaded method. Returns an ordered list of schema versions. This is then used to produce a set of steps to upgrade through to achieve the required schema version.
@@ -328,6 +348,10 @@ sub ordered_schema_versions {
 
     # add schema and database versions to list
     push @schema_versions, $self->get_db_version, $self->schema_version;
+
+    # add schema $FIRST_VERSION if it is defined
+    my $first_version = $self->schema_first_version;
+    push @schema_versions, $first_version if defined $first_version;
 
     return sort _byversion do {
         my %seen;
@@ -581,9 +605,20 @@ sub versioned_schema {
 
     my $pversion = version->parse($_version);
 
+    my $schema_first_version = $self->schema_first_version;
+
     foreach my $source_name ( $self->sources ) {
 
         my $source = $self->source($source_name);
+
+        unless ( defined $schema_first_version ) {
+
+            # $FIRST_VERSION not defined for schema so we check resultset since
+            my $versioned = $source->resultset_attributes->{versioned};
+            if ( !defined $versioned || !defined $versioned->{since} ) {
+                $self->throw_exception("\$FIRST_VERSION not defined for schema and 'since' not defined for '$source_name' - you must use one of them");
+            }
+        }
 
         # check columns before deciding on class-level since/until to make sure
         # we don't miss any versions
