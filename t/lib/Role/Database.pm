@@ -94,10 +94,9 @@ Add diag showing DBD version info.
 
 before setup => sub {
     my $self = shift;
-    diag "using: " . $self->dbd_version;
+    diag sprintf("using: %s DBIC %s SQLT %s",
+        $self->dbd_version, $DBIx::Class::VERSION, $SQL::Translator::VERSION);
     diag "db: " . $self->database_info;
-    diag "DBIC: " . $DBIx::Class::VERSION;
-    diag "SQLT: " . $SQL::Translator::VERSION;
 };
 
 1;
