@@ -1,5 +1,16 @@
 Revision history for DBIx::Class::Schema::Versioned::Inline
 
+0.022 Thu Sep  4 14:54:38 CEST 2014
+
+    [ENHANCEMENTS]
+
+    * add $FIRST_VERSION plus schema_first_version method
+
+    [TESTS]
+
+    * hide some useless Test::PostgreSQL warnings
+    * add --no-locale to Pg initdb_args to try and prevent failures
+
 0.021 Thu Sep  4 10:34:54 CEST 2014
 
     * Fix ::Candy tests to prevent smoker failures

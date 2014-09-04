@@ -16,11 +16,11 @@ This is BETA software so the usual caveats apply. This software might drown your
 
 =head1 VERSION
 
-Version 0.021
+Version 0.022
 
 =cut
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 =head1 SYNOPSIS
 
