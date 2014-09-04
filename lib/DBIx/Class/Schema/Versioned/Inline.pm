@@ -28,6 +28,7 @@ our $VERSION = '0.022';
 
  use base 'DBIx::Class::Schema::Versioned::Inline';
 
+ our $FIRST_VERSION = '0.001';
  our $VERSION = '0.002';
 
  __PACKAGE__->load_namespaces;

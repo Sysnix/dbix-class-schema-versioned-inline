@@ -10,13 +10,11 @@ Schema versioning for DBIx::Class with version information embedded inline in th
 
 =head1 WARNING
 
-Although all documented functionality has been implemented it is only possible to use the module currently with MySQL. Tests exist for SQLite and PostgreSQL but upgrade tests are currently broken and so are skipped due to issues with L<SQL::Translator>. I am hoping the SQLT issues can be resolved ASAP.
-
-This is BETA software so the usual caveats apply.
+This is BETA software so the usual caveats apply. This software might drown your kittens and perform other unusual or unexpected beahaviour.
 
 =head1 VERSION
 
-Version 0.011
+Version 0.022
 
 
 =cut
@@ -27,6 +25,7 @@ Version 0.011
 
  use base 'DBIx::Class::Schema::Versioned::Inline';
 
+ our $FIRST_VERSION = '0.001';
  our $VERSION = '0.002';
 
  __PACKAGE__->load_namespaces;
@@ -276,6 +275,15 @@ Inherited method. Same as L<DBIx::Class::Schema/deploy> but also calls C<install
 
 Inherited method. Call this to initialise a previously unversioned database.
 
+=head2 schema_first_version
+
+Returns the current schema class' $FIRST_VERSION in a normalised way.
+
+If the schema does not define $FIRST_VERSION then all resultsets must specify the version at which they were added using L</since>.
+
+
+=cut
+
 =head2 ordered_schema_versions
 
 Overloaded method. Returns an ordered list of schema versions. This is then used to produce a set of steps to upgrade through to achieve the required schema version.
@@ -319,9 +327,27 @@ Parse schema and remove classes, columns and relationships that are not valid fo
 
 =cut
 
+=head1 CANDY
+
+See L<DBIx::Class::Schema::Versioned::Inline::Candy>.
+
 =head1 CAVEATS
 
 Please anticipate API changes in this early state of development.
+
+=head1 TODO
+
+=over 4
+
+=item * Sequence renaming in Pg, MySQL (maybe?). Not required for SQLite.
+
+=item * Index renaming for auto-created indexes for UCs, etc - Pg + others?
+
+=item * Downgrades
+
+=item * Schema validation
+
+=back
 
 =head1 AUTHOR
 
@@ -373,7 +399,7 @@ L<http://search.cpan.org/dist/DBIx-Class-Schema-Versioned-Inline/>
 
 =head1 ACKNOWLEDGEMENTS
 
-Thanks to Best Practical Solutions for the L<Jifty> framework and L<Jifty::DBI> which inspired this distribution. Thanks also to Matt S. Trout and all of the L<DBIx::Class> developers for an excellent distribution.
+Thanks to Best Practical Solutions for the L<Jifty> framework and L<Jifty::DBI> which inspired this distribution. Many thanks to all of the L<DBIx::Class> and L<SQL::Translator> developers for those excellent distributions and especially to ribasushi and ilmari for all of their help and input.
 
 =head1 LICENSE AND COPYRIGHT
 
