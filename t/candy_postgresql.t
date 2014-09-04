@@ -6,6 +6,9 @@ use Module::Find;
 use Test::Roo;
 use TestCandy::Schema;
 
+# LANG can cause initdb failures
+delete $ENV{LANG};
+
 eval "use DBIx::Class::Candy";
 plan skip_all => "DBIx::Class::Candy required" if $@;
 

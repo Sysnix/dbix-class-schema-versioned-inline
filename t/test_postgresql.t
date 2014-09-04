@@ -6,6 +6,9 @@ use Module::Find;
 use Test::Roo;
 use TestVersion::Schema;
 
+# LANG can cause initdb failures
+delete $ENV{LANG};
+
 my @test_roles;
 
 if ( $ENV{TEST_ROLE_ONLY} ) {
