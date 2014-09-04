@@ -39,7 +39,12 @@ sub cmp_table {
 
 test 'deploy v0.001' => sub {
     my $self = shift;
-    $self->clear_database;
+
+    {
+        # Pg can be noisy on stop if we stop it too soon after starting
+        local $SIG{__WARN__} = sub {};
+        $self->clear_database;
+    }
 
     diag "Test::Deploy with " . $self->schema_class;
 

@@ -21,8 +21,11 @@ test 'deploy 0.001' => sub {
 
     diag "Test::Upgrade with " . $self->schema_class;
 
-    # paranoia: we might not be the first test
-    $self->clear_database;
+    # paranoia: we might not be the first test (and want no warnings from this)
+    {
+        local $SIG{__WARN__} = sub {};
+        $self->clear_database;
+    }
 
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.001' };
