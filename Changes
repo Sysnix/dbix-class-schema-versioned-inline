@@ -1,5 +1,10 @@
 Revision history for DBIx::Class::Schema::Versioned::Inline
 
+0.021 Thu Sep  4 10:34:54 CEST 2014
+
+    * Fix ::Candy tests to prevent smoker failures
+    * Fix PostgreSQL tests to prevent failure due to LANG ENV problems
+
 0.020 Wed Sep  3 17:14:11 CEST 2014
 
     * New SQL::Translator release allows upgrades to work for SQLite and Pg.
