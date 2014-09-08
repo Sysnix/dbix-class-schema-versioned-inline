@@ -1,5 +1,13 @@
 Revision history for DBIx::Class::Schema::Versioned::Inline
 
+0.023 Mon Sep  8 17:58:48 CEST 2014
+
+    [TESTS]
+
+    * try to make ::Candy less likely to croak when DBIx::Class::Candy
+      is not found
+    * reduce test diag verbosity
+
 0.022 Thu Sep  4 14:54:38 CEST 2014
 
     [ENHANCEMENTS]
