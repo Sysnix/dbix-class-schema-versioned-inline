@@ -8,7 +8,8 @@ use Test::Roo;
 eval "use DBIx::Class::Candy";
 plan skip_all => "DBIx::Class::Candy required" if $@;
 
-use TestCandy::Schema;
+eval "use TestCandy::Schema";
+plan skip_all => "DBIx::Class::Candy required" if $@;
 
 my @test_roles;
 

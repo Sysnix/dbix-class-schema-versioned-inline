@@ -12,6 +12,10 @@ before '0.002' => sub {
 after '0.002' => sub {
     my $schema = shift;
     $schema->resultset('Bar')->create({ weight => 20 });
+};
+
+after '0.002' => sub {
+    my $schema = shift;
     $schema->resultset('Foo')->create({ width => 30 });
 };
 

@@ -5,13 +5,11 @@ use lib File::Spec->catdir( 't', 'lib' );
 use Module::Find;
 use Test::Roo;
 
-# LANG can cause initdb failures
-delete $ENV{LANG};
-
 eval "use DBIx::Class::Candy";
 plan skip_all => "DBIx::Class::Candy required" if $@;
 
-use TestCandy::Schema;
+eval "use TestCandy::Schema";
+plan skip_all => "DBIx::Class::Candy required" if $@;
 
 my @test_roles;
 
