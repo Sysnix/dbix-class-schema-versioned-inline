@@ -7,6 +7,9 @@ use Test::Roo::Role;
 use Test::Most;
 use version 0.77;
 
+my @column_noise = (qw(till until since changes renamed_from versioned));
+my @relation_noise = (@column_noise, qw(is_depends_on));
+
 sub cmp_table {
     my ( $class, $columns, $relations ) = @_;
     my $name = $class->source_name;
@@ -15,7 +18,7 @@ sub cmp_table {
 
     foreach my $column ( $class->columns ) {
         my %got = %{$class->column_info($column)};
-        foreach my $i ( qw/till until since changes renamed_from versioned/ ) {
+        foreach my $i ( @column_noise ) {
             delete $got{$i};
         }
         cmp_deeply( \%got, $columns->{$column}, "$name column $column");
@@ -27,9 +30,8 @@ sub cmp_table {
 
         foreach my $rel ( $class->relationships ) {
             my %got = %{$class->relationship_info($rel)};
-            foreach my $i (
-              qw/till until since changes renamed_from versioned is_depends_on/
-            ) {
+            delete $got{_original_name}; # noise
+            foreach my $i ( @relation_noise ) {
                 delete $got{attrs}->{$i};
             }
             cmp_deeply( \%got, $relations->{$rel}, "$name relation $rel");
