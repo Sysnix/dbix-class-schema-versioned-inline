@@ -1,5 +1,12 @@
 Revision history for DBIx::Class::Schema::Versioned::Inline
 
+0.024 Wed Sep 17 12:46:53 CEST 2014
+
+    [TESTS]
+
+    * handle new _original_name relationship attribute introduced by DBIC
+      commit bad0b73b due in next stable release
+
 0.023 Mon Sep  8 17:58:48 CEST 2014
 
     [TESTS]
