@@ -35,8 +35,13 @@ sub connect_info {
     my $self = shift;
 
     return ( "dbi:SQLite:dbname=$dbfile", undef, undef,
-        { sqlite_unicode => 1, on_connect_call => 'use_foreign_keys',
-          on_connect_do  => 'PRAGMA synchronous = OFF' } );
+        {
+            sqlite_unicode  => 1,
+            on_connect_call => 'use_foreign_keys',
+            on_connect_do   => 'PRAGMA synchronous = OFF',
+            quote_names     => 1,
+        }
+    );
 
 }
 
