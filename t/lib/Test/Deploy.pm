@@ -31,7 +31,6 @@ sub cmp_table {
 
         foreach my $rel ( $class->relationships ) {
             my %got = %{$class->relationship_info($rel)};
-            delete $got{_original_name}; # noise
             foreach my $i ( @relation_noise ) {
                 delete $got{attrs}->{$i};
             }
