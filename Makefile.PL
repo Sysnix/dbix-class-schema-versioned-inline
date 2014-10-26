@@ -35,6 +35,7 @@ WriteMakefile(
         resources => {
             repository => 'https://github.com/Sysnix/dbix-class-schema-versioned-inline.git',
             bugtracker => 'https://github.com/Sysnix/dbix-class-schema-versioned-inline/issues',
+            IRC        => 'irc://irc.perl.org/#dbix-class',
         },
     },
 );
