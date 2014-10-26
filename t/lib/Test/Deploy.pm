@@ -4,7 +4,8 @@ $ENV{DBIC_NO_VERSION_CHECK} = 1;
 
 use Data::Dumper;
 use Test::Roo::Role;
-use Test::Most;
+use Test::Deep;
+use Test::Exception;
 use version 0.77;
 
 my @column_noise = (qw(till until since changes renamed_from versioned));

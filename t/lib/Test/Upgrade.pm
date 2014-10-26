@@ -3,9 +3,9 @@ package Test::Upgrade;
 $ENV{DBIC_NO_VERSION_CHECK} = 1;
 
 use Class::Unload;
-use Data::Dumper;
 use Test::Roo::Role;
-use Test::Most;
+use Test::Deep;
+use Test::Exception;
 use DBIx::Class::Schema::Loader qw/make_schema_at/;
 use SQL::Translator;
 
