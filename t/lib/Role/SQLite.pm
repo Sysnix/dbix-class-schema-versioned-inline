@@ -1,12 +1,14 @@
 package Role::SQLite;
 
+use Class::Load qw(try_load_class);
 use File::Temp;
-use Test::More;
+
 use Test::Roo::Role;
 with 'Role::Database';
 
-eval "use DBD::SQLite";
-plan skip_all => "DBD::SQLite required" if $@;
+sub BUILD {
+    try_load_class("DBD::SQLite") or plan skip_all => "DBD::SQLite required";
+}
 
 my $fh = File::Temp->new( TEMPLATE => 'upgrade_test_XXXXX', EXLOCK => 0 );
 my $dbfile = $fh->filename;
@@ -33,7 +35,9 @@ sub connect_info {
     my $self = shift;
 
     return ( "dbi:SQLite:dbname=$dbfile", undef, undef,
-    { sqlite_unicode => 1, on_connect_call => 'use_foreign_keys' } );
+        { sqlite_unicode => 1, on_connect_call => 'use_foreign_keys',
+          on_connect_do  => 'PRAGMA synchronous = OFF' } );
+
 }
 
 sub _build_database_info {

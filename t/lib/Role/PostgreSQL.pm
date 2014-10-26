@@ -1,17 +1,17 @@
 package Role::PostgreSQL;
 
-use Test::More;
+use Class::Load qw(try_load_class);
+
 use Test::Roo::Role;
 with 'Role::Database';
 
-eval "use DateTime::Format::Pg";
-plan skip_all => "DateTime::Format::Pg required" if $@;
+sub BUILD {
+    my $self = shift;
 
-eval "use DBD::Pg";
-plan skip_all => "DBD::Pg required" if $@;
-
-eval "use Test::PostgreSQL";
-plan skip_all => "Test::PostgreSQL required" if $@;
+    foreach my $module (qw/DateTime::Format::Pg DBD::Pg Test::PostgreSQL/) {
+        try_load_class($module) or plan skip_all => "$module required";
+    }
+}
 
 sub _build_database {
     my $self = shift;

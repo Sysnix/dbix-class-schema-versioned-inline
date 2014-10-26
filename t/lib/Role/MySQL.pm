@@ -1,17 +1,17 @@
 package Role::MySQL;
 
-use Test::More;
+use Class::Load qw(try_load_class);
+
 use Test::Roo::Role;
 with 'Role::Database';
 
-eval "use DateTime::Format::MySQL";
-plan skip_all => "DateTime::Format::MySQL required" if $@;
+sub BUILD {
+    my $self = shift;
 
-eval "use DBD::mysql";
-plan skip_all => "DBD::mysql required" if $@;
-
-eval "use Test::mysqld";
-plan skip_all => "Test::mysqld required" if $@;
+    foreach my $module (qw/DateTime::Format::MySQL DBD::mysql Test::mysqld/) {
+        try_load_class($module) or plan skip_all => "$module required";
+    }
+}
 
 sub _build_database {
     my $self = shift;

@@ -15,6 +15,7 @@ WriteMakefile(
         'ExtUtils::MakeMaker' => 0,
     },
     BUILD_REQUIRES => {
+        'Class::Load'                 => 0,
         'DBIx::Class::Schema::Loader' => 0.07040,
         'File::Spec'                  => 3.47,
         'DBD::SQLite'                 => 1.40,
