@@ -8,7 +8,8 @@ DBIx::Class::Schema::Versioned::Inline
 
 =head1 SUMMARY
 
-Schema versioning for DBIx::Class with version information embedded inline in the schema definition.
+Schema versioning for DBIx::Class with version information embedded
+inline in the schema definition.
 
 =head1 VERSION
 
@@ -129,17 +130,26 @@ our $VERSION = '0.025';
 
 =head1 DESCRIPTION
 
-This module extends L<DBIx::Class::Schema::Versioned> using simple 'since' and 'until' tokens within result classes to specify the schema version at which classes and columns were introduced or removed. Column since/until definitions are included as part of 'versioned' info in add_column(s).
+This module extends L<DBIx::Class::Schema::Versioned> using simple
+'since' and 'until' tokens within result classes to specify the
+schema version at which classes and columns were introduced or
+removed. Column since/until definitions are included as part of
+'versioned' info in add_column(s).
 
 =head2 since
 
-When a class is added to a schema at a specific schema version version then a 'since' attribute must be added to the class which returns the version at which the class was added. For example:
+When a class is added to a schema at a specific schema version
+version then a 'since' attribute must be added to the class which
+returns the version at which the class was added. For example:
 
  __PACKAGE__->resultset_attributes({ versioned => { since => '0.002' }});
 
-It is not necessary to add this to the initial version of a class since any class without this atribute is assumed to have existed for ever.
+It is not necessary to add this to the initial version of a class
+since any class without this atribute is assumed to have existed for
+ever.
 
-Using 'since' in a column or relationship definition denotes the version at which the column/relation was added. For example:
+Using 'since' in a column or relationship definition denotes the
+version at which the column/relation was added. For example:
 
  __PACKAGE__->add_column(
     "age" => {
@@ -150,7 +160,9 @@ Using 'since' in a column or relationship definition denotes the version at whic
 
 For changes to column_info such as a change of data_type see L</changes>.
 
-Note: if the Result containing the column includes a class-level C<since> then there is no need to add C<since> markers for columns created at the same version.
+Note: if the Result containing the column includes a class-level
+C<since> then there is no need to add C<since> markers for columns
+created at the same version.
 
 Relationships are handled in the same way as columns:
 
@@ -163,7 +175,10 @@ Relationships are handled in the same way as columns:
 
 =head2 until
 
-When used as a class attribute this should be the schema version at which the class is to be removed. The underlying database table will be removed when the schema is upgraded to this version. Example definitions:
+When used as a class attribute this should be the schema version at
+which the class is to be removed. The underlying database table will
+be removed when the schema is upgraded to this version. Example
+definitions:
 
  __PACKAGE__->resultset_attributes({ versioned => { until => '0.7' }});
 
@@ -174,13 +189,17 @@ When used as a class attribute this should be the schema version at which the cl
     }
  );
 
-Using 'until' in a column or relationship definition will cause removal of the column/relation from the table when the schema is upgraded to this version.
+Using 'until' in a column or relationship definition will cause
+removal of the column/relation from the table when the schema is
+upgraded to this version.
 
 =head2 renamed_from
 
-This is always used alongside 'since' in the renamed class/column and there must also be a corresponding 'until' on the old class/column.
+This is always used alongside 'since' in the renamed class/column and
+there must also be a corresponding 'until' on the old class/column.
 
-NOTE: when renaming a class the 'renamed_from' value is the table name of the old class and NOT the class name.
+NOTE: when renaming a class the 'renamed_from' value is the table name
+of the old class and NOT the class name.
 
 For example when renaming a class:
 
@@ -209,13 +228,24 @@ And when renaming a column:
     },
  );
 
-As can been seen in the example it is possible to modify column definitions at the same time as a rename but care should be taken to ensure that any data modification (such as ensuring there are no longer null values when is_nullable => 0 is introduced) must be handled via L</Upgrade.pm>.
+As can been seen in the example it is possible to modify column
+definitions at the same time as a rename but care should be taken to
+ensure that any data modification (such as ensuring there are no
+longer null values when is_nullable => 0 is introduced) must be
+handled via L</Upgrade.pm>.
 
-NOTE: if columns are renamed at the same version that a class/table is renamed (for example a renamed PK) then you MUST also add C<renamed_from> to the column as otherwise data from that column will be lost. In this special situation adding C<since> to the column is not required.
+NOTE: if columns are renamed at the same version that a class/table is
+renamed (for example a renamed PK) then you MUST also add
+C<renamed_from> to the column as otherwise data from that column will
+be lost. In this special situation adding C<since> to the column is
+not required.
 
 =head2 changes
 
-Column definition changes are handled using the C<changes> token. A hashref is created for each version where the column definition changes which details the new column definition in effect from that change revision. For example:
+Column definition changes are handled using the C<changes> token. A
+hashref is created for each version where the column definition
+changes which details the new column definition in effect from that
+change revision. For example:
 
  __PACKAGE__->add_columns(
     "item_weight",
@@ -246,11 +276,14 @@ Column definition changes are handled using the C<changes> token. A hashref is c
     }
  );
 
-Note: the initial column definition should never be changed since that is the definition to be used from when the column is first created until the first change is effected.
+Note: the initial column definition should never be changed since that
+is the definition to be used from when the column is first created
+until the first change is effected.
 
 =head2 Upgrade.pm
 
-For details on how to apply data modifications that might be required during an upgrade see L<DBIx::Class::Schema::Versioned::Inline::Upgrade>.
+For details on how to apply data modifications that might be required
+during an upgrade see L<DBIx::Class::Schema::Versioned::Inline::Upgrade>.
 
 =cut
 
@@ -273,7 +306,9 @@ Many methods are inherited or overloaded from L<DBIx::Class::Schema::Versioned>.
 
 =head2 connection
 
-Overloaded method. This checks the DBIC schema version against the DB version and uses the DB version if it exists or the schema version if the database is currently unversioned.
+Overloaded method. This checks the DBIC schema version against the DB
+version and uses the DB version if it exists or the schema version if
+the database is currently unversioned.
 
 =cut
 
@@ -306,17 +341,32 @@ sub connection {
 
 =head2 deploy
 
-Inherited method. Same as L<DBIx::Class::Schema/deploy> but also calls C<install>.
+Inherited method. Same as L<DBIx::Class::Schema/deploy> but also
+calls C<install>.
+
+=head2 downgrade
+
+Call this to attempt to downgrade your database from the version it
+is at to the version this DBIC schema is at. If they are the same
+it does nothing.
+
+=cut
+
+=head2 downgrade_single_step
+
+=cut
 
 =head2 install
 
-Inherited method. Call this to initialise a previously unversioned database.
+Inherited method. Call this to initialise a previously unversioned
+database.
 
 =head2 schema_first_version
 
 Returns the current schema class' $FIRST_VERSION in a normalised way.
 
-If the schema does not define $FIRST_VERSION then all resultsets must specify the version at which they were added using L</since>.
+If the schema does not define $FIRST_VERSION then all resultsets must
+specify the version at which they were added using L</since>.
 
 =cut
 
@@ -334,7 +384,9 @@ sub schema_first_version {
 
 =head2 ordered_schema_versions
 
-Overloaded method. Returns an ordered list of schema versions. This is then used to produce a set of steps to upgrade through to achieve the required schema version.
+Overloaded method. Returns an ordered list of schema versions. This
+is then used to produce a set of steps to upgrade through to achieve
+the required schema version.
 
 =cut
 
@@ -358,7 +410,9 @@ sub ordered_schema_versions {
 
 =head2 upgrade
 
-Inherited method. Call this to attempt to upgrade your database from the version it is at to the version this DBIC schema is at. If they are the same it does nothing.
+Inherited method. Call this to attempt to upgrade your database from
+the version it is at to the version this DBIC schema is at. If they
+are the same it does nothing.
 
 =head2 upgrade_single_step
 
@@ -370,11 +424,16 @@ Inherited method. Call this to attempt to upgrade your database from the version
 
 =back
 
-Overloaded method. Call this to attempt to upgrade your database from the I<db_version> to the I<target_version>. If they are the same it does nothing.
+Overloaded method. Call this to attempt to upgrade your database from
+the I<db_version> to the I<target_version>. If they are the same it
+does nothing.
 
-All upgrade operations within this step are performed inside a single transaction so either all succeed or all fail. If successful the dbix_class_schema_versions table is updated with the I<target_version>.
+All upgrade operations within this step are performed inside a single
+transaction so either all succeed or all fail. If successful the
+dbix_class_schema_versions table is updated with the I<target_version>.
 
-This method may be called repeatedly by the L</upgrade> method to upgrade through a series of updates.
+This method may be called repeatedly by the L</upgrade> method to
+upgrade through a series of updates.
 
 =cut
 
@@ -593,7 +652,8 @@ sub upgrade_single_step {
 
 =back
 
-Parse schema and remove classes, columns and relationships that are not valid for the requested version.
+Parse schema and remove classes, columns and relationships that are
+not valid for the requested version.
 
 =cut
 
@@ -817,11 +877,13 @@ Peter Rabbitson (ribasushi)
 
 This is BETA software so bugs and missing features are expected.
 
-Please report any bugs or feature requests via the project's GitHub issue tracker:
+Please report any bugs or feature requests via the project's GitHub
+issue tracker:
 
 L<https://github.com/Sysnix/dbix-class-schema-versioned-inline/issues>
 
-I will be notified, and then you'll automatically be notified of progress on your bug as I make changes.
+I will be notified, and then you'll automatically be notified of
+progress on your bug as I make changes.
 
 =head1 SUPPORT
 
@@ -853,13 +915,19 @@ L<http://search.cpan.org/dist/DBIx-Class-Schema-Versioned-Inline/>
 
 =head1 ACKNOWLEDGEMENTS
 
-Thanks to Best Practical Solutions for the L<Jifty> framework and L<Jifty::DBI> which inspired this distribution. Many thanks to all of the L<DBIx::Class> and L<SQL::Translator> developers for those excellent distributions and especially to ribasushi and ilmari for all of their help and input.
+Thanks to Best Practical Solutions for the L<Jifty> framework and
+L<Jifty::DBI> which inspired this distribution. Many thanks to all of
+the L<DBIx::Class> and L<SQL::Translator> developers for those
+excellent distributions and especially to ribasushi and ilmari for all
+of their help and input.
 
 =head1 LICENSE AND COPYRIGHT
 
 Copyright 2014 Peter Mottram (SysPete).
 
-This program is free software; you can redistribute it and/or modify it under the terms of either: the GNU General Public License as published by the Free Software Foundation; or the Artistic License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of either: the GNU General Public License as
+published by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
 
