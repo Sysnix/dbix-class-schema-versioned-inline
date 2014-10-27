@@ -350,11 +350,298 @@ Call this to attempt to downgrade your database from the version it
 is at to the version this DBIC schema is at. If they are the same
 it does nothing.
 
+It will call L</ordered_schema_versions> to retrieve an ordered
+list of schema versions (if ordered_schema_versions returns nothing
+then it is assumed you can do the downgrade as a single step). It
+then iterates through the list of versions between the current db
+version and the schema version applying one downgrade at a time until
+all relevant changes are applied.
+
+The individual downgrade steps are performed by using
+L</downgrade_single_step>, which will apply the downgrade and also
+update the dbix_class_schema_versions table.
+
 =cut
+
+# much of this originally cargo-culted from DBIx::Class::Schema::Versioned
+
+sub downgrade {
+    my ($self) = @_;
+    my $db_version = $self->get_db_version();
+
+    # db unversioned
+    unless ($db_version) {
+        carp 'Downgrade not possible as database is unversioned. Please call install first.';
+    }
+
+    # db and schema at same version. do nothing
+    if ( $db_version eq $self->schema_version ) {
+        carp 'Downgrade not necessary';
+        return;
+    }
+
+    my @version_list = $self->ordered_schema_versions;
+
+    # if nothing returned then we preload with min/max
+    @version_list = ( $self->schema_version, $db_version )
+      unless ( scalar(@version_list) );
+
+    # catch the case of someone returning an arrayref
+    @version_list = @{ $version_list[0] }
+      if ( ref( $version_list[0] ) eq 'ARRAY' );
+
+    # remove all versions in list above the current version
+    while ( scalar(@version_list) && ( $version_list[-1] ne $db_version ) )
+    {
+        pop @version_list;
+    }
+
+    # remove all versions in list below the required version
+    while ( scalar(@version_list)
+        && ( $version_list[0] ne $self->schema_version ) )
+    {
+        shift @version_list;
+    }
+
+    # check we have an appropriate list of versions
+    if ( scalar(@version_list) < 2 ) {
+        die;
+    }
+    # do sets of downgrades
+    while ( scalar(@version_list) >= 2 ) {
+        $self->upgrade_single_step( $version_list[-1], $version_list[-2] );
+        pop @version_list;
+    }
+}
 
 =head2 downgrade_single_step
 
 =cut
+
+sub downgrade_single_step {
+    my ( $self, $db_version, $target_version ) = @_;
+
+    # db and schema at same version. do nothing
+    if ( $db_version eq $target_version ) {
+        carp 'Downgrade not necessary';
+        return;
+    }
+
+    unless ( $db_version eq $self->get_db_version ) {
+        $self->throw_exception(
+            "Attempt to downgrade DB from $db_version but current version is "
+              . $self->get_db_version );
+    }
+
+    my $sqlt_type = $self->storage->sqlt_type;
+
+    # add Downgrade before/after subs
+
+    my $downgradeclass = ref($self) . "::Downgrade";
+    my ( @before_downgrade_subs, @after_downgrade_subs );
+    eval {
+        eval "require $downgradeclass" or return;
+        @before_downgrade_subs =
+          $downgradeclass->before_downgrade($target_version);
+        @after_downgrade_subs =
+          $downgradeclass->after_downgrade($target_version);
+    };
+
+    # translate current schema
+
+    my $curr_sqlt = SQL::Translator->new(
+        no_comments   => 1,
+        parser        => 'SQL::Translator::Parser::DBIx::Class',
+        parser_args   => { dbic_schema => $self, },
+        producer      => $sqlt_type,
+        show_warnings => 1,
+    ) or $self->throw_exception( SQL::Translator->error );
+    $curr_sqlt->show_warnings(0);
+    $curr_sqlt->translate;
+
+    # translate target schema
+
+    # our target future-versioned connect causes warning messages we don't want
+    my $old_DBIC_NO_VERSION_CHECK = $ENV{DBIC_NO_VERSION_CHECK} || 0;
+    $ENV{DBIC_NO_VERSION_CHECK} = 1;
+
+    # we'll reuse connect_info from existing schema for target ver connect
+    my $connect_info = $self->storage->connect_info;
+
+    # pad out user/pass if they don't exist
+    while ( scalar @$connect_info < 3 ) {
+        push @$connect_info, undef;
+    }
+
+    # add next version
+    $connect_info->[3]->{_version} = $target_version;
+
+    my $target_schema = ref($self)->connect(@$connect_info);
+
+    # turn noises back to normal level
+    $ENV{DBIC_NO_VERSION_CHECK} = $old_DBIC_NO_VERSION_CHECK;
+
+    my $target_sqlt = SQL::Translator->new(
+        no_comments   => 1,
+        parser        => 'SQL::Translator::Parser::DBIx::Class',
+        parser_args   => { dbic_schema => $target_schema, },
+        producer      => $sqlt_type,
+        show_warnings => 1,
+    ) or $self->throw_exception( SQL::Translator->error );
+    $target_sqlt->show_warnings(0);
+    $target_sqlt->translate;
+
+    # table name => class name lookup
+
+    my %table2class = map { $self->resultset($_)->result_source->name => $_ }
+      $target_schema->sources;
+
+    # we need to add renamed_from into $target_sqlt->schema extras
+    # and since this is a downgrade we'll find the table/class renames
+    # in $curr_schema but need to add renamed_from into $target_schema
+
+    foreach my $source_name ( $self->sources ) {
+
+        my $source       = $self->source($source_name);
+        my $versioned    = $source->resultset_attributes->{versioned};
+        my $table_since  = $versioned->{since};
+        my $renamed_from = $versioned->{renamed_from};
+
+        if (   $versioned
+            && $renamed_from
+            && $table_since eq $db_version )
+        {
+            if ( defined $table2class{$renamed_from} ) {
+
+                # we must have a table name but need the class name
+
+                $renamed_from = $table2class{$renamed_from};
+            }
+
+            my $table = $target_sqlt->schema->get_table($renamed_from);
+
+            $table->extra( renamed_from =>
+                  $self->resultset($source_name)->result_source->name );
+        }
+
+    }
+
+    # now handle column renames
+
+    foreach my $source_name ( $target_schema->sources ) {
+
+        my $source      = $target_schema->source($source_name);
+        my $table       = $target_sqlt->schema->get_table( $source->name );
+        my $versioned   = $source->resultset_attributes->{versioned};
+        my $table_since = $versioned->{since};
+
+        foreach my $column ( $source->columns ) {
+            my $column_info = $source->column_info($column);
+            my $versioned   = $column_info->{versioned};
+            my $renamed =
+              $versioned->{renamed_from} || $column_info->{renamed_from};
+            if ($renamed) {
+                my $since =
+                  $versioned->{since} || $column_info->{since} || $table_since;
+                if ( $since eq $db_version ) {
+                    my $field = $table->get_field($renamed);
+                    $field->extra( renamed_from => $column );
+                }
+            }
+        }
+    }
+
+    # now we create the diff which we need as array so we can process one
+    # line at a time
+
+    my @diff = SQL::Translator::Diff->new(
+        {
+            output_db               => $sqlt_type,
+            source_schema           => $curr_sqlt->schema,
+            target_schema           => $target_sqlt->schema,
+            ignore_index_names      => 1,
+            ignore_constraint_names => 1,
+        }
+    )->compute_differences->produce_diff_sql;
+
+    my $exception;
+    try {
+        $self->txn_do(
+            sub {
+
+                # Downgrade.pm before
+
+                foreach my $sub (@before_downgrade_subs) {
+                    $sub->($self)
+                      or die "Failed downgrade before $target_version sub";
+                }
+
+                # execute SQL one line at a time
+
+                foreach my $line (@diff) {
+
+                    # drop comments and BEGIN/COMMIT
+                    next if $line =~ /(^--|BEGIN|COMMIT)/;
+
+                    $self->storage->dbh_do(
+                        sub {
+                            my ( $storage, $dbh ) = @_;
+                            if ( $sqlt_type eq 'SQLite' ) {
+
+                                # FIXME: SQLite barfs on FK constraints
+                                # during temp table copy
+                                if ( $line =~ /CREATE TEMPORARY TABLE/ ) {
+                                    $line =~ s/,\n\s*FOREIGN KEY.+?\n/\n/;
+                                }
+                            }
+                            $dbh->do($line);
+                        }
+                    );
+                }
+
+                # Downgrade.pm after
+
+                unless ( $sqlt_type =~ /^(PostgreSQL|SQLite)$/ ) {
+
+                    # FIXME: sadly we can't do this as part of this transaction
+                    # in Pg & SQLite - reason still to be determined
+
+                    foreach my $sub (@after_downgrade_subs) {
+                        $sub->($target_schema)
+                          or die "Failed downgrade after $target_version sub";
+                    }
+                }
+            }
+        );
+
+        $self->txn_do(
+            sub {
+                if ( $sqlt_type =~ /^(PostgreSQL|SQLite)$/ ) {
+
+                    # FIXME: see comments within transaction above
+                    # perform the 'after' steps we were forced to skip earlier
+
+                    foreach my $sub (@after_downgrade_subs) {
+                        $sub->($target_schema)
+                          or die "Failed downgrade after $target_version sub";
+                    }
+                }
+            }
+        );
+    }
+    catch {
+        $exception = $_;
+    };
+
+    if ( defined $exception ) {
+        $self->throw_exception($exception);
+    }
+    else {
+
+        # set row in dbix_class_schema_versions table
+        $self->_set_db_version( { version => $target_version } );
+    }
+}
 
 =head2 install
 
@@ -485,7 +772,7 @@ sub upgrade_single_step {
     # we'll reuse connect_info from existing schema for target ver connect
     my $connect_info = $self->storage->connect_info;
 
-    # padd out user/pass if they don't exist
+    # pad out user/pass if they don't exist
     while ( scalar @$connect_info < 3 ) {
         push @$connect_info, undef;
     }
