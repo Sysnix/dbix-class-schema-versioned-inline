@@ -10,10 +10,6 @@ DBIx::Class::Schema::Versioned::Inline
 
 Schema versioning for DBIx::Class with version information embedded inline in the schema definition.
 
-=head1 WARNING
-
-This is BETA software so the usual caveats apply. This software might drown your kittens and perform other unusual or unexpected beahaviour.
-
 =head1 VERSION
 
 Version 0.025
@@ -823,7 +819,7 @@ This is BETA software so bugs and missing features are expected.
 
 Please report any bugs or feature requests via the project's GitHub issue tracker:
 
-L<https://github.com/Sysnix/dbix-class-schema-versioned-jiftyesque/issues>
+L<https://github.com/Sysnix/dbix-class-schema-versioned-inline/issues>
 
 I will be notified, and then you'll automatically be notified of progress on your bug as I make changes.
 
