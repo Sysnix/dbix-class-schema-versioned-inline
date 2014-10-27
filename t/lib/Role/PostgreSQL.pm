@@ -9,6 +9,7 @@ sub BUILD {
     my $self = shift;
 
     foreach my $module (qw/DateTime::Format::Pg DBD::Pg Test::PostgreSQL/) {
+        diag "try_load_class $module";
         try_load_class($module) or plan skip_all => "$module required";
     }
 }
