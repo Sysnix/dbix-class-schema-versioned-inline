@@ -18,7 +18,7 @@ after teardown => sub {
 };
 
 sub clear_database {
-    unlink $dbfile or diag "Could not unlink $dbfile: $!";
+    unlink1( $fh, $dbfile ) or diag "Could not unlink $dbfile: $!";
 }
 
 sub _build_database {
