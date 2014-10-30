@@ -409,7 +409,7 @@ sub downgrade {
     }
     # do sets of downgrades
     while ( scalar(@version_list) >= 2 ) {
-        $self->upgrade_single_step( $version_list[-1], $version_list[-2] );
+        $self->downgrade_single_step( $version_list[-1], $version_list[-2] );
         pop @version_list;
     }
 }
@@ -420,6 +420,8 @@ sub downgrade {
 
 sub downgrade_single_step {
     my ( $self, $db_version, $target_version ) = @_;
+
+    #print STDERR "db: $db_version target: $target_version\n";
 
     # db and schema at same version. do nothing
     if ( $db_version eq $target_version ) {
@@ -493,7 +495,8 @@ sub downgrade_single_step {
 
     # table name => class name lookup
 
-    my %table2class = map { $self->resultset($_)->result_source->name => $_ }
+    my %table2class =
+      map { $target_schema->resultset($_)->result_source->name => $_ }
       $target_schema->sources;
 
     # we need to add renamed_from into $target_sqlt->schema extras
@@ -518,7 +521,9 @@ sub downgrade_single_step {
                 $renamed_from = $table2class{$renamed_from};
             }
 
-            my $table = $target_sqlt->schema->get_table($renamed_from);
+            my $table =
+              $target_sqlt->schema->get_table(
+                $target_schema->resultset($renamed_from)->result_source->name );
 
             $table->extra( renamed_from =>
                   $self->resultset($source_name)->result_source->name );
@@ -528,22 +533,35 @@ sub downgrade_single_step {
 
     # now handle column renames
 
-    foreach my $source_name ( $target_schema->sources ) {
+    foreach my $source_name ( $self->sources ) {
 
-        my $source      = $target_schema->source($source_name);
-        my $table       = $target_sqlt->schema->get_table( $source->name );
+        #print STDERR "source_name: $source_name\n";
+
+        my $source      = $self->source($source_name);
         my $versioned   = $source->resultset_attributes->{versioned};
         my $table_since = $versioned->{since};
 
+        # don't go any further if this table is not in the target SQLT schema
+        my $table = $target_sqlt->schema->get_table( $source->name );
+        next unless defined $table;
+
         foreach my $column ( $source->columns ) {
+
+            #print STDERR "column: $column\n";
+
             my $column_info = $source->column_info($column);
             my $versioned   = $column_info->{versioned};
             my $renamed =
               $versioned->{renamed_from} || $column_info->{renamed_from};
             if ($renamed) {
+                #use DDP;
+                #p $column_info;
+                #p $db_version;
                 my $since =
                   $versioned->{since} || $column_info->{since} || $table_since;
+                  #p $since;
                 if ( $since eq $db_version ) {
+                    #print STDERR "******* hoola hoola\n";
                     my $field = $table->get_field($renamed);
                     $field->extra( renamed_from => $column );
                 }
@@ -1087,6 +1105,7 @@ sub versioned_schema {
         if ( defined $versioned ) {
             $since = $versioned->{since} if defined $versioned->{since};
             $until = $versioned->{until} if defined $versioned->{until};
+            $until = $versioned->{till} if defined $versioned->{till};
         }
 
         my $name = $source_name;
@@ -1144,9 +1163,9 @@ Please anticipate API changes in this early state of development.
 
 =item * Index renaming for auto-created indexes for UCs, etc - Pg + others?
 
-=item * Downgrades
-
 =item * Schema validation
+
+=item * lots of code refactoring
 
 =back
 
