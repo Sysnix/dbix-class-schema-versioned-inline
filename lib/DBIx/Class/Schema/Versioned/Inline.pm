@@ -421,8 +421,6 @@ sub downgrade {
 sub downgrade_single_step {
     my ( $self, $db_version, $target_version ) = @_;
 
-    #print STDERR "db: $db_version target: $target_version\n";
-
     # db and schema at same version. do nothing
     if ( $db_version eq $target_version ) {
         carp 'Downgrade not necessary';
@@ -535,7 +533,7 @@ sub downgrade_single_step {
 
     foreach my $source_name ( $self->sources ) {
 
-        #print STDERR "source_name: $source_name\n";
+        print STDERR "source_name: $source_name\n";
 
         my $source      = $self->source($source_name);
         my $versioned   = $source->resultset_attributes->{versioned};
@@ -547,10 +545,15 @@ sub downgrade_single_step {
 
         foreach my $column ( $source->columns ) {
 
-            #print STDERR "column: $column\n";
+            print STDERR "column: $column\n";
 
             my $column_info = $source->column_info($column);
             my $versioned   = $column_info->{versioned};
+
+            # we have to drop any 'until' columns that do not exist in target
+            my $until = $versioned->{till} || $versioned->{until};
+            next if ( defined $until && $until eq $db_version );
+
             my $renamed =
               $versioned->{renamed_from} || $column_info->{renamed_from};
             if ($renamed) {
