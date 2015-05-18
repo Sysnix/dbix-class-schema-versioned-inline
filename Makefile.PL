@@ -44,6 +44,7 @@ WriteMakefile(
         my $config = {
             PREREQ_PM => {
                 'DBIx::Class'        => $MIN_DBIC_VERSION,
+                'Safe::Isa'          => 0,
                 'Set::Equivalence'   => '0.003',
                 'SQL::Translator'    => 0,
                 'Try::Tiny'          => '0.18',

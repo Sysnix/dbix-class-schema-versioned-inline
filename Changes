@@ -1,5 +1,9 @@
 Revision history for DBIx::Class::Schema::Versioned::Inline
 
+0.101 Mon May 18 19:07:55 CEST 2015
+
+    * Start using Safe::Isa
+
 0.100 Mon May 18 18:51:38 CEST 2015
 
     [BUGS]
