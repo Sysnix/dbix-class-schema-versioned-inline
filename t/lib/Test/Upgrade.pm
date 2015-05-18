@@ -23,7 +23,7 @@ test 'deploy 0.001' => sub {
 
     # paranoia: we might not be the first test (and want no warnings from this)
     {
-        local $SIG{__WARN__} = sub {};
+        local $SIG{__WARN__} = sub { };
         $self->clear_database;
     }
 
@@ -57,7 +57,7 @@ test 'deploy 0.001' => sub {
         q(SELECT foos_id, height FROM foos ORDER BY foos_id ASC));
     cmp_deeply(
         $aref,
-        [[1,1],[2,2],[3,3],[4,4],[5,undef],[6,undef]],
+        [ [ 1, 1 ], [ 2, 2 ], [ 3, 3 ], [ 4, 4 ], [ 5, undef ], [ 6, undef ] ],
         "height values OK"
     ) || diag Dumper $aref;
 };
@@ -113,7 +113,10 @@ test 'test 0.002' => sub {
         q(SELECT foos_id,width FROM foos ORDER BY foos_id ASC));
     cmp_deeply(
         $aref,
-        [[1,1],[2,2],[3,3],[4,4],[5,20],[6,20],[7,30]],
+        [
+            [ 1, 1 ], [ 2, 2 ], [ 3, 3 ], [ 4, 4 ],
+            [ 5, 20 ], [ 6, 20 ], [ 7, 30 ]
+        ],
         "width values OK"
     ) || diag Dumper $aref;
 };
@@ -175,20 +178,23 @@ test 'test 0.003' => sub {
         q(SELECT trees_id,width FROM trees ORDER BY trees_id ASC));
     cmp_deeply(
         $aref,
-        [[1,1],[2,2],[3,3],[4,4],[5,20],[6,20],[7,30],[8,40]],
+        [
+            [ 1, 1 ],  [ 2, 2 ],  [ 3, 3 ],  [ 4, 4 ],
+            [ 5, 20 ], [ 6, 20 ], [ 7, 30 ], [ 8, 40 ]
+        ],
         "width values OK"
-    );# || diag Dumper $aref;
+    );    # || diag Dumper $aref;
 };
 
-test 'upgrade to 0.4' => sub {
+test 'upgrade to 0.004' => sub {
     my $self = shift;
 
     no warnings 'redefine';
-    local *DBIx::Class::Schema::schema_version = sub { '0.4' };
+    local *DBIx::Class::Schema::schema_version = sub { '0.004' };
 
     my $schema = $self->schema_class->connect( $self->connect_info );
 
-    cmp_ok( $schema->schema_version, 'eq', '0.4', "Check schema version" );
+    cmp_ok( $schema->schema_version, 'eq', '0.004', "Check schema version" );
     cmp_ok( $schema->get_db_version, 'eq', '0.003', "Check db version" );
 
     # let's upgrade!
@@ -198,11 +204,65 @@ test 'upgrade to 0.4' => sub {
         "Upgrade " . $schema->get_db_version . " to " . $schema->schema_version
     );
 
-    cmp_ok( $schema->get_db_version, 'eq', '0.4',
+    cmp_ok( $schema->get_db_version, 'eq', '0.004',
         "Check db version post upgrade" );
 };
 
-test 'test 0.4' => sub {
+test 'test 0.004' => sub {
+    my $self = shift;
+
+    make_schema_at(
+        'Test::Schema',
+        {
+            exclude => qr/dbix_class_schema_versions/,
+            naming  => 'current',
+        },
+        [ $self->connect_info ],
+    );
+
+    my $schema = 'Test::Schema';
+
+    cmp_bag( [ $schema->sources ], [qw(Bar Tree)], "Tree and Bar" )
+      or diag Dumper( $schema->sources );
+
+    # columns
+    my $tree = $schema->source('Tree');
+    cmp_bag(
+        [ Test::Schema::Result::Tree->columns ],
+        [qw(age bars_id trees_id width)],
+        "Tree columns OK"
+    );
+    my $bar = $schema->source('Bar');
+    cmp_bag(
+        [ $bar->columns ],
+        [qw(age bars_id height weight)],
+        "Bar columns OK"
+    );
+};
+
+test 'upgrade to 0.400' => sub {
+    my $self = shift;
+
+    no warnings 'redefine';
+    local *DBIx::Class::Schema::schema_version = sub { '0.400' };
+
+    my $schema = $self->schema_class->connect( $self->connect_info );
+
+    cmp_ok( $schema->schema_version, 'eq', '0.400', "Check schema version" );
+    cmp_ok( $schema->get_db_version, 'eq', '0.004', "Check db version" );
+
+    # let's upgrade!
+
+    lives_ok(
+        sub { $schema->upgrade },
+        "Upgrade " . $schema->get_db_version . " to " . $schema->schema_version
+    );
+
+    cmp_ok( $schema->get_db_version, 'eq', '0.400',
+        "Check db version post upgrade" );
+};
+
+test 'test 0.400' => sub {
     my $self = shift;
 
     make_schema_at(

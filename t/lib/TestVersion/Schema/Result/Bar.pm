@@ -32,7 +32,7 @@ __PACKAGE__->add_columns(
     "weight" => {
         data_type   => "integer",
         is_nullable => 1,
-        versioned   => { until => '0.4' }
+        versioned   => { until => '0.400' }
     },
 );
 

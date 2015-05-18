@@ -30,7 +30,7 @@ column height => {
 column weight => {
     data_type   => "integer",
     is_nullable => 1,
-    till        => '0.4',
+    till        => '0.400',
 };
 
 has_many
