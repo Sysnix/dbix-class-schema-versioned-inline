@@ -7,7 +7,7 @@ DBIx::Class::Schema::Versioned::Inline
 =cut
 
 BEGIN {
-    $DBIx::Class::MultiVersion::VERSION = '0.100';
+    $DBIx::Class::Schema::Versioned::Inline::VERSION = '0.100';
 }
 
 =head1 VERSION
