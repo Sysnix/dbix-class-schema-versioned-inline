@@ -21,15 +21,12 @@ use strict;
 
 use parent 'DBIx::Class::Schema::Versioned';
 
-use Carp;
+use DBIx::Class::Carp;
 use Set::Equivalence;
 use SQL::Translator;
 use SQL::Translator::Diff;
 use Try::Tiny;
 use Types::PerlVersion qw/PerlVersion to_PerlVersion/;
-use version 0.77;
-
-our (%upgrades);
 
 __PACKAGE__->mk_classdata( 'schema_versions' =>
       Set::Equivalence->new( type_constraint => PerlVersion, coerce => 1 ) );
