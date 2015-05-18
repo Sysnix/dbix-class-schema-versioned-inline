@@ -1,5 +1,7 @@
 package DBIx::Class::Schema::Versioned::Inline;
 
+=encoding utf8 
+
 =head1 NAME
 
 DBIx::Class::Schema::Versioned::Inline - Defined multiple schema versions within resultset classes
@@ -22,6 +24,7 @@ use strict;
 use parent 'DBIx::Class::Schema::Versioned';
 
 use DBIx::Class::Carp;
+use Safe::Isa;
 use Set::Equivalence;
 use SQL::Translator;
 use SQL::Translator::Diff;
@@ -30,6 +33,10 @@ use Types::PerlVersion qw/PerlVersion to_PerlVersion/;
 
 __PACKAGE__->mk_classdata( 'schema_versions' =>
       Set::Equivalence->new( type_constraint => PerlVersion, coerce => 1 ) );
+
+sub add_version {
+    shift->schema_versions->insert(shift);
+}
 
 sub connection {
     my $self = shift;
@@ -58,20 +65,8 @@ sub connection {
     return $self;
 }
 
-sub schema_first_version {
-    my ($self) = @_;
-    my $class = ref($self) || $self;
-
-    my $version;
-    {
-        no strict 'refs';
-        $version = ${"${class}::FIRST_VERSION"};
-    }
-    return $version;
-}
-
-sub add_version {
-    shift->schema_versions->insert(shift);
+sub get_db_version {
+    return to_PerlVersion( shift->next::method(@_) );
 }
 
 sub ordered_schema_versions {
@@ -85,12 +80,34 @@ sub ordered_schema_versions {
     }
 }
 
+sub schema_first_version {
+    my ($self) = @_;
+    my $class = ref($self) || $self;
+
+    my $version;
+    {
+        no strict 'refs';
+        $version = ${"${class}::FIRST_VERSION"};
+    }
+    return to_PerlVersion($version);
+}
+
+sub schema_version {
+    return to_PerlVersion( shift->next::method(@_) );
+}
+
 sub stringified_ordered_schema_versions {
     return map { $_->stringify } shift->ordered_schema_versions(shift);
 }
 
 sub upgrade_single_step {
     my ( $self, $db_version, $target_version ) = @_;
+
+    $db_version = to_PerlVersion($db_version)
+      unless $db_version->$_isa(PerlVersion);
+
+    $target_version = to_PerlVersion($target_version)
+      unless $target_version->$_isa(PerlVersion);
 
     # db and schema at same version. do nothing
     if ( $db_version eq $target_version ) {
@@ -374,7 +391,8 @@ sub versioned_schema {
 
                 foreach my $change_version (
                     sort { to_PerlVersion($a) <=> to_PerlVersion($b) }
-                    keys %$changes )
+                    keys %$changes
+                  )
                 {
 
                     my $change_value = $changes->{$change_version};
@@ -799,6 +817,11 @@ it does nothing.
 Inherited method. Call this to initialise a previously unversioned
 database.
 
+=head2 get_db_version
+
+Override L<DBIx::Class::Schema::Versioned/get_db_version> to return the
+version as a L<PerlVersion|Types::PerlVersion> object.
+
 =head2 ordered_schema_versions
 
   $self->ordered_schema_version('desc');
@@ -813,12 +836,15 @@ Returns the current schema class' $FIRST_VERSION in a normalised way.
 If the schema does not define $FIRST_VERSION then all resultsets must
 specify the version at which they were added using L</since>.
 
+=head2 schema_version
+
+Override L<DBIx::Class::Schema/schema_version> to return the version as
+a L<PerlVersion|Types::PerlVersion> object.
+
 =head2 stringified_ordered_schema_versions
 
-  $self->stringified_ordered_schema_version('desc');
-
-Calls L</ordered_schema_versions> and returns the list of versions
-stringified using L<Perl::Version/stringify>.
+Calls L</ordered_schema_versions> with the same args and converts the returned
+list elements to stringified versions.
 
 =head2 upgrade
 

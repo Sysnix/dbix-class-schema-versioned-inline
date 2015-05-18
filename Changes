@@ -1,5 +1,14 @@
 Revision history for DBIx::Class::Schema::Versioned::Inline
 
+0.100 Mon May 18 18:51:38 CEST 2015
+
+    [BUGS]
+
+    * all version comparisons now use Types::PerlVersion coercions to ensure
+      that we handle versions such as 0.4 correctly since Perl::Version
+      and version both convert that internally to v0.004 and so 0.4 < 0.003
+      is now true when before it was false.
+
 0.025 Sun Oct 26 17:18:28 CET 2014
 
     [TESTS]
