@@ -2,7 +2,7 @@ package DBIx::Class::Schema::Versioned::Inline;
 
 =head1 NAME
 
-DBIx::Class::Schema::Versioned::Inline
+DBIx::Class::Schema::Versioned::Inline - Defined multiple schema versions within resultset classes
 
 =cut
 
