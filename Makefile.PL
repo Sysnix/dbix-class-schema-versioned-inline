@@ -17,6 +17,15 @@ WriteMakefile(
         'ExtUtils::MakeMaker' => 0,
         'DBIx::Class'         => $MIN_DBIC_VERSION,
     },
+    BUILD_REQUIRES => {
+        'Class::Load'                 => 0,
+        'DBD::SQLite'                 => '1.40',
+        'DBIx::Class::Schema::Loader' => '0.07040',
+        'File::Spec'                  => '3.47',
+        'Test::Deep'                  => 0,
+        'Test::Exception'             => 0,
+        'Test::Roo'                   => '1.003',
+    },
     CONFIGURE => sub {
 
         #<<<
@@ -26,29 +35,19 @@ WriteMakefile(
         # deps needed by DBIC are always met correctly
         # https://metacpan.org/pod/distribution/DBIx-Class/lib/DBIx/Class/Optional/Dependencies.pod
         #
-        # Also add SQLT and DBD::SQLite deps on version 0 to catch the case of
+        # Also add SQLT dep on version 0 to catch the case of
         # users installing directly from checked out repo who will not have
         # META files yet. This is also needed for travis-ci.
         #
         #>>>
 
         my $config = {
-            BUILD_REQUIRES => {
-                'Class::Load'                 => 0,
-                'DBD::SQLite'                 => 0,
-                'DBIx::Class::Schema::Loader' => '0.07040',
-                'File::Spec'                  => '3.47',
-                'Test::Deep'                  => 0,
-                'Test::Exception'             => 0,
-                'Test::Roo'                   => '1.003',
-            },
             PREREQ_PM => {
                 'DBIx::Class'        => $MIN_DBIC_VERSION,
                 'Set::Equivalence'   => '0.003',
                 'SQL::Translator'    => 0,
                 'Try::Tiny'          => '0.18',
                 'Types::PerlVersion' => '0.002',
-
             }
         };
 
@@ -59,11 +58,6 @@ WriteMakefile(
           DBIx::Class::Optional::Dependencies->req_list_for('deploy');
         for ( keys %$deploy_deps ) {
             $config->{PREREQ_PM}->{$_} = $deploy_deps->{$_};
-        }
-        $deploy_deps =
-          DBIx::Class::Optional::Dependencies->req_list_for('rdbms_sqlite');
-        for ( keys %$deploy_deps ) {
-            $config->{BUILD_REQUIRES}->{$_} = $deploy_deps->{$_};
         }
         return $config;
     },
