@@ -1,29 +1,488 @@
 package DBIx::Class::Schema::Versioned::Inline;
 
-=encoding utf8
+use warnings;
+use strict;
 
 =head1 NAME
 
 DBIx::Class::Schema::Versioned::Inline
+
+=head1 VERSION
+
+Version 0.100
+
+=cut
+
+our $VERSION = '0.100';
+
+use base 'DBIx::Class::Schema::Versioned';
+
+use Carp;
+use SQL::Translator;
+use SQL::Translator::Diff;
+use Try::Tiny;
+use version 0.77;
+
+our ( @schema_versions, %upgrades );
+
+sub connection {
+    my $self = shift;
+    $self->next::method(@_);
+
+    my $connect_info = $self->storage->connect_info;
+    $self->{vschema} = DBIx::Class::Version->connect(@$connect_info);
+
+    # uncoverable condition right
+    my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
+
+    my $version = $conn_attrs->{_version} || $self->get_db_version();
+
+    unless ($version) {
+
+        # TODO: checks for unversioned
+        # - do we throw exception?
+        # - do we install automatically?
+        # - can we be passed some method or connect arg?
+        # for now just set $pversion to schema_version
+        $version = $self->schema_version;
+    }
+
+    $self->versioned_schema( $version, $conn_attrs->{_type} );
+
+    return $self;
+}
+
+sub schema_first_version {
+    my ($self) = @_;
+    my $class = ref($self)||$self;
+
+    my $version;
+    {
+        no strict 'refs';
+        $version = ${"${class}::FIRST_VERSION"};
+    }
+    return $version;
+}
+sub _byversion { version->parse($a) <=> version->parse($b); }
+
+sub ordered_schema_versions {
+    my $self = shift;
+
+    # add schema and database versions to list
+    push @schema_versions, $self->get_db_version, $self->schema_version;
+
+    # add schema $FIRST_VERSION if it is defined
+    my $first_version = $self->schema_first_version;
+    push @schema_versions, $first_version if defined $first_version;
+
+    return sort _byversion do {
+        my %seen;
+        grep { defined $_ && !$seen{$_}++ } @schema_versions;
+    };
+}
+sub upgrade_single_step {
+    my ( $self, $db_version, $target_version ) = @_;
+
+    # db and schema at same version. do nothing
+    if ( $db_version eq $target_version ) {
+        carp 'Upgrade not necessary';
+        return;
+    }
+
+    unless ( $db_version eq $self->get_db_version ) {
+        $self->throw_exception(
+            "Attempt to upgrade DB from $db_version but current version is "
+              . $self->get_db_version );
+    }
+
+    my $sqlt_type = $self->storage->sqlt_type;
+
+    # add Upgrade before/after subs
+
+    my $upgradeclass = ref($self) . "::Upgrade";
+    my ( @before_upgrade_subs, @after_upgrade_subs );
+    eval {
+        eval "require $upgradeclass" or return;
+        @before_upgrade_subs = $upgradeclass->before_upgrade($target_version);
+        @after_upgrade_subs  = $upgradeclass->after_upgrade($target_version);
+    };
+
+    # translate current schema
+
+    my $curr_sqlt = SQL::Translator->new(
+        no_comments   => 1,
+        parser        => 'SQL::Translator::Parser::DBIx::Class',
+        parser_args   => { dbic_schema => $self, },
+        producer      => $sqlt_type,
+        show_warnings => 1,
+    ) or $self->throw_exception( SQL::Translator->error );
+    $curr_sqlt->show_warnings(0);
+    $curr_sqlt->translate;
+
+    # translate target schema
+
+    # our target future-versioned connect causes warning messages we don't want
+    my $old_DBIC_NO_VERSION_CHECK = $ENV{DBIC_NO_VERSION_CHECK} || 0;
+    $ENV{DBIC_NO_VERSION_CHECK} = 1;
+
+    # we'll reuse connect_info from existing schema for target ver connect
+    my $connect_info = $self->storage->connect_info;
+
+    # padd out user/pass if they don't exist
+    while ( scalar @$connect_info < 3 ) {
+        push @$connect_info, undef;
+    }
+
+    # add next version
+    $connect_info->[3]->{_version} = $target_version;
+
+    my $target_schema = ref($self)->connect(@$connect_info);
+
+    # turn noises back to normal level
+    $ENV{DBIC_NO_VERSION_CHECK} = $old_DBIC_NO_VERSION_CHECK;
+
+    my $target_sqlt = SQL::Translator->new(
+        no_comments   => 1,
+        parser        => 'SQL::Translator::Parser::DBIx::Class',
+        parser_args   => { dbic_schema => $target_schema, },
+        producer      => $sqlt_type,
+        show_warnings => 1,
+    ) or $self->throw_exception( SQL::Translator->error );
+    $target_sqlt->show_warnings(0);
+    $target_sqlt->translate;
+
+    # we need to add renamed_from into $target_sqlt->schema extras
+
+    foreach my $source_name ( $target_schema->sources ) {
+
+        my $source = $target_schema->source($source_name);
+
+        # tables
+
+        my $table        = $target_sqlt->schema->get_table( $source->name );
+        my $versioned    = $source->resultset_attributes->{versioned};
+        my $table_since  = $versioned->{since};
+        my $renamed_from = $versioned->{renamed_from};
+
+        if (   $versioned
+            && $renamed_from
+            && $table_since eq $target_version )
+        {
+            if ( grep { $_ eq $renamed_from } $self->sources ) {
+
+                # $renamed_from smells like class name rather than table
+                $renamed_from =
+                  $self->resultset($renamed_from)->result_source->name;
+            }
+            $table->extra( renamed_from => $renamed_from );
+        }
+
+        # columns
+
+        foreach my $column ( $source->columns ) {
+            my $column_info = $source->column_info($column);
+            my $versioned   = $column_info->{versioned};
+            my $renamed =
+              $versioned->{renamed_from} || $column_info->{renamed_from};
+            if ($renamed) {
+                my $since =
+                  $versioned->{since} || $column_info->{since} || $table_since;
+                if ( $since eq $target_version ) {
+                    my $field = $table->get_field($column);
+                    $field->extra( renamed_from => $renamed );
+                }
+            }
+        }
+    }
+
+    # now we create the diff which we need as array so we can process one
+    # line at a time
+
+    my @diff = SQL::Translator::Diff->new(
+        {
+            output_db               => $sqlt_type,
+            source_schema           => $curr_sqlt->schema,
+            target_schema           => $target_sqlt->schema,
+            ignore_index_names      => 1,
+            ignore_constraint_names => 1,
+        }
+    )->compute_differences->produce_diff_sql;
+
+    my $exception;
+    try {
+        $self->txn_do(
+            sub {
+
+                # Upgrade.pm before
+
+                foreach my $sub (@before_upgrade_subs) {
+                    $sub->($self)
+                      or die "Failed upgrade before $target_version sub";
+                }
+
+                # execute SQL one line at a time
+
+                foreach my $line (@diff) {
+
+                    # drop comments and BEGIN/COMMIT
+                    next if $line =~ /(^--|BEGIN|COMMIT)/;
+
+                    $self->storage->dbh_do(
+                        sub {
+                            my ( $storage, $dbh ) = @_;
+                            if ( $sqlt_type eq 'SQLite' ) {
+
+                                # FIXME: SQLite barfs on FK constraints
+                                # during temp table copy
+                                if ( $line =~ /CREATE TEMPORARY TABLE/ ) {
+                                    $line =~ s/,\n\s*FOREIGN KEY.+?\n/\n/;
+                                }
+                            }
+                            $dbh->do($line);
+                        }
+                    );
+                }
+
+                # Upgrade.pm after
+
+                unless ( $sqlt_type =~ /^(PostgreSQL|SQLite)$/ ) {
+
+                    # FIXME: sadly we can't do this as part of this transaction
+                    # in Pg & SQLite - reason still to be determined
+
+                    foreach my $sub (@after_upgrade_subs) {
+                        $sub->($target_schema)
+                          or die "Failed upgrade after $target_version sub";
+                    }
+                }
+            }
+        );
+
+        $self->txn_do(
+            sub {
+                if ( $sqlt_type =~ /^(PostgreSQL|SQLite)$/ ) {
+
+                    # FIXME: see comments within transaction above
+                    # perform the 'after' steps we were forced to skip earlier
+
+                    foreach my $sub (@after_upgrade_subs) {
+                        $sub->($target_schema)
+                          or die "Failed upgrade after $target_version sub";
+                    }
+                }
+            }
+        );
+    }
+    catch {
+        $exception = $_;
+    };
+
+    if ( defined $exception ) {
+        $self->throw_exception($exception);
+    }
+    else {
+
+        # set row in dbix_class_schema_versions table
+        $self->_set_db_version( { version => $target_version } );
+    }
+}
+sub versioned_schema {
+    my ( $self, $_version ) = @_;
+
+    my $pversion = version->parse($_version);
+
+    my $schema_first_version = $self->schema_first_version;
+
+    foreach my $source_name ( $self->sources ) {
+
+        my $source = $self->source($source_name);
+
+        unless ( defined $schema_first_version ) {
+
+            # $FIRST_VERSION not defined for schema so we check resultset since
+            my $versioned = $source->resultset_attributes->{versioned};
+            if ( !defined $versioned || !defined $versioned->{since} ) {
+                $self->throw_exception("\$FIRST_VERSION not defined for schema and 'since' not defined for '$source_name' - you must use one of them");
+            }
+        }
+
+        # check columns before deciding on class-level since/until to make sure
+        # we don't miss any versions
+
+        foreach my $column ( $source->columns ) {
+
+            my $column_info = $source->column_info($column);
+            my $versioned   = $column_info->{versioned};
+
+            my ( $changes, $renamed, $since, $until );
+            if ($versioned) {
+                $changes = $versioned->{changes};
+                $renamed = $versioned->{renamed_from};
+                $since   = $versioned->{since};
+                $until   = $versioned->{until};
+                $until   = $versioned->{till} if defined $versioned->{till};
+            }
+            else {
+                $changes = $column_info->{changes};
+                $renamed = $column_info->{renamed_from};
+                $since   = $column_info->{since};
+                $until   = $column_info->{until};
+                $until   = $column_info->{till} if defined $column_info->{till};
+            }
+
+            # handle since/until first
+
+            my $name = "$source_name column $column";
+            my $sub  = sub {
+                my $source = shift;
+                $source->remove_column($column);
+            };
+            $self->_since_until( $pversion, $since, $until, $name, $sub,
+                $source );
+
+            # handled renamed column
+
+            if ($renamed) {
+                unless ($since) {
+
+                    # catch sitation where class has since but renamed_from
+                    # on column does not (renamed PK columns for example)
+
+                    my $rsa_ver = $source->resultset_attributes->{versioned};
+                    $since = $rsa_ver->{since} if $rsa_ver->{since};
+                }
+            }
+
+            # handle changes
+
+            if ($changes) {
+                $self->throw_exception("changes not a hasref in $name")
+                  unless ref($changes) eq 'HASH';
+
+                foreach my $change_version ( sort _byversion keys %$changes ) {
+
+                    $self->throw_exception(
+                        "Bad changes version number $change_version in $name")
+                      unless version::is_lax($change_version);
+
+                    my $change_value = $changes->{$change_version};
+
+                    $self->throw_exception(
+                        "not a hasref in $name changes $change_version")
+                      unless ref($change_value) eq 'HASH';
+
+                    # stash the version
+                    push @schema_versions, $change_version;
+
+                    if ( $pversion >= version->parse($change_version) ) {
+                        unless ( $source->remove_column($column)
+                            && $source->add_column( $column => $change_value ) )
+                        {
+                            $self->throw_exception(
+                                "Failed change $change_version for $name");
+                        }
+                    }
+                }
+            }
+        }
+
+        # check relations
+
+        foreach my $relation_name ( $source->relationships ) {
+
+            my $attrs = $source->relationship_info($relation_name)->{attrs};
+
+            next unless defined $attrs;
+
+            my $versioned = $attrs->{versioned};
+
+            # TODO: changes/renamed_from for relations?
+            my ( $since, $until );
+            if ($versioned) {
+                $since = $versioned->{since};
+                $until = $versioned->{until};
+                $until = $versioned->{till} if defined $versioned->{till};
+            }
+            else {
+                $since = $attrs->{since};
+                $until = $attrs->{until};
+                $until = $attrs->{till} if defined $attrs->{till};
+            }
+
+            my $name = "$source_name relationship $relation_name";
+            my $sub  = sub {
+                my $source = shift;
+                my %rels   = %{ $source->_relationships };
+                delete $rels{$relation_name};
+                $source->_relationships( \%rels );
+            };
+            $self->_since_until( $pversion, $since, $until, $name, $sub,
+                $source );
+        }
+
+        # check class-level since/until
+
+        my ( $since, $until );
+
+        my $versioned = $source->resultset_attributes->{versioned};
+
+        if ( defined $versioned ) {
+            $since = $versioned->{since} if defined $versioned->{since};
+            $until = $versioned->{until} if defined $versioned->{until};
+        }
+
+        my $name = $source_name;
+        my $sub  = sub {
+            my $class = shift;
+            $class->unregister_source($source_name);
+        };
+        $self->_since_until( $pversion, $since, $until, $name, $sub, $self );
+    }
+}
+
+sub _since_until {
+    my ( $self, $pversion, $since, $until, $name, $sub, $thing ) = @_;
+
+    if ($since) {
+        $self->throw_exception("Bad since $since for $name")
+          unless version::is_lax($since);
+        push @schema_versions, $since;
+    }
+    if ($until) {
+        $self->throw_exception("Bad till/until $until for $name")
+          unless version::is_lax($until);
+        push @schema_versions, $until;
+    }
+
+    if (   $since
+        && $until
+        && ( version->parse($since) > version->parse($until) ) )
+    {
+        $self->throw_exception("$name has since greater than until");
+    }
+
+    # until is absolute so parse before since
+    if ( $until && $pversion >= version->parse($until) ) {
+        $sub->($thing);
+    }
+    if ( $since && $pversion < version->parse($since) ) {
+        $sub->($thing);
+    }
+}
+1;
 
 =head1 SUMMARY
 
 Schema versioning for DBIx::Class with version information embedded
 inline in the schema definition.
 
-=head1 VERSION
-
-Version 0.025
-
-=cut
-
-our $VERSION = '0.025';
-
 =head1 SYNOPSIS
 
  package MyApp::Schema;
 
- use base 'DBIx::Class::Schema::Versioned::Inline';
+ use parent 'DBIx::Class::Schema';
+
+ __PACKAGE__->load_components('Schema::Versioned::Inline');
 
  our $FIRST_VERSION = '0.001';
  our $VERSION = '0.002';
@@ -285,21 +744,6 @@ until the first change is effected.
 For details on how to apply data modifications that might be required
 during an upgrade see L<DBIx::Class::Schema::Versioned::Inline::Upgrade>.
 
-=cut
-
-use warnings;
-use strict;
-
-use base 'DBIx::Class::Schema::Versioned';
-
-use Carp;
-use SQL::Translator;
-use SQL::Translator::Diff;
-use Try::Tiny;
-use version 0.77;
-
-our ( @schema_versions, %upgrades );
-
 =head1 METHODS
 
 Many methods are inherited or overloaded from L<DBIx::Class::Schema::Versioned>.
@@ -309,35 +753,6 @@ Many methods are inherited or overloaded from L<DBIx::Class::Schema::Versioned>.
 Overloaded method. This checks the DBIC schema version against the DB
 version and uses the DB version if it exists or the schema version if
 the database is currently unversioned.
-
-=cut
-
-sub connection {
-    my $self = shift;
-    $self->next::method(@_);
-
-    my $connect_info = $self->storage->connect_info;
-    $self->{vschema} = DBIx::Class::Version->connect(@$connect_info);
-
-    # uncoverable condition right
-    my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
-
-    my $version = $conn_attrs->{_version} || $self->get_db_version();
-
-    unless ($version) {
-
-        # TODO: checks for unversioned
-        # - do we throw exception?
-        # - do we install automatically?
-        # - can we be passed some method or connect arg?
-        # for now just set $pversion to schema_version
-        $version = $self->schema_version;
-    }
-
-    $self->versioned_schema( $version, $conn_attrs->{_type} );
-
-    return $self;
-}
 
 =head2 deploy
 
@@ -350,11 +765,7 @@ Call this to attempt to downgrade your database from the version it
 is at to the version this DBIC schema is at. If they are the same
 it does nothing.
 
-=cut
-
 =head2 downgrade_single_step
-
-=cut
 
 =head2 install
 
@@ -368,45 +779,11 @@ Returns the current schema class' $FIRST_VERSION in a normalised way.
 If the schema does not define $FIRST_VERSION then all resultsets must
 specify the version at which they were added using L</since>.
 
-=cut
-
-sub schema_first_version {
-    my ($self) = @_;
-    my $class = ref($self)||$self;
-
-    my $version;
-    {
-        no strict 'refs';
-        $version = ${"${class}::FIRST_VERSION"};
-    }
-    return $version;
-}
-
 =head2 ordered_schema_versions
 
 Overloaded method. Returns an ordered list of schema versions. This
 is then used to produce a set of steps to upgrade through to achieve
 the required schema version.
-
-=cut
-
-sub _byversion { version->parse($a) <=> version->parse($b); }
-
-sub ordered_schema_versions {
-    my $self = shift;
-
-    # add schema and database versions to list
-    push @schema_versions, $self->get_db_version, $self->schema_version;
-
-    # add schema $FIRST_VERSION if it is defined
-    my $first_version = $self->schema_first_version;
-    push @schema_versions, $first_version if defined $first_version;
-
-    return sort _byversion do {
-        my %seen;
-        grep { defined $_ && !$seen{$_}++ } @schema_versions;
-    };
-}
 
 =head2 upgrade
 
@@ -435,215 +812,6 @@ dbix_class_schema_versions table is updated with the I<target_version>.
 This method may be called repeatedly by the L</upgrade> method to
 upgrade through a series of updates.
 
-=cut
-
-sub upgrade_single_step {
-    my ( $self, $db_version, $target_version ) = @_;
-
-    # db and schema at same version. do nothing
-    if ( $db_version eq $target_version ) {
-        carp 'Upgrade not necessary';
-        return;
-    }
-
-    unless ( $db_version eq $self->get_db_version ) {
-        $self->throw_exception(
-            "Attempt to upgrade DB from $db_version but current version is "
-              . $self->get_db_version );
-    }
-
-    my $sqlt_type = $self->storage->sqlt_type;
-
-    # add Upgrade before/after subs
-
-    my $upgradeclass = ref($self) . "::Upgrade";
-    my ( @before_upgrade_subs, @after_upgrade_subs );
-    eval {
-        eval "require $upgradeclass" or return;
-        @before_upgrade_subs = $upgradeclass->before_upgrade($target_version);
-        @after_upgrade_subs  = $upgradeclass->after_upgrade($target_version);
-    };
-
-    # translate current schema
-
-    my $curr_sqlt = SQL::Translator->new(
-        no_comments   => 1,
-        parser        => 'SQL::Translator::Parser::DBIx::Class',
-        parser_args   => { dbic_schema => $self, },
-        producer      => $sqlt_type,
-        show_warnings => 1,
-    ) or $self->throw_exception( SQL::Translator->error );
-    $curr_sqlt->show_warnings(0);
-    $curr_sqlt->translate;
-
-    # translate target schema
-
-    # our target future-versioned connect causes warning messages we don't want
-    my $old_DBIC_NO_VERSION_CHECK = $ENV{DBIC_NO_VERSION_CHECK} || 0;
-    $ENV{DBIC_NO_VERSION_CHECK} = 1;
-
-    # we'll reuse connect_info from existing schema for target ver connect
-    my $connect_info = $self->storage->connect_info;
-
-    # padd out user/pass if they don't exist
-    while ( scalar @$connect_info < 3 ) {
-        push @$connect_info, undef;
-    }
-
-    # add next version
-    $connect_info->[3]->{_version} = $target_version;
-
-    my $target_schema = ref($self)->connect(@$connect_info);
-
-    # turn noises back to normal level
-    $ENV{DBIC_NO_VERSION_CHECK} = $old_DBIC_NO_VERSION_CHECK;
-
-    my $target_sqlt = SQL::Translator->new(
-        no_comments   => 1,
-        parser        => 'SQL::Translator::Parser::DBIx::Class',
-        parser_args   => { dbic_schema => $target_schema, },
-        producer      => $sqlt_type,
-        show_warnings => 1,
-    ) or $self->throw_exception( SQL::Translator->error );
-    $target_sqlt->show_warnings(0);
-    $target_sqlt->translate;
-
-    # we need to add renamed_from into $target_sqlt->schema extras
-
-    foreach my $source_name ( $target_schema->sources ) {
-
-        my $source = $target_schema->source($source_name);
-
-        # tables
-
-        my $table        = $target_sqlt->schema->get_table( $source->name );
-        my $versioned    = $source->resultset_attributes->{versioned};
-        my $table_since  = $versioned->{since};
-        my $renamed_from = $versioned->{renamed_from};
-
-        if (   $versioned
-            && $renamed_from
-            && $table_since eq $target_version )
-        {
-            if ( grep { $_ eq $renamed_from } $self->sources ) {
-
-                # $renamed_from smells like class name rather than table
-                $renamed_from =
-                  $self->resultset($renamed_from)->result_source->name;
-            }
-            $table->extra( renamed_from => $renamed_from );
-        }
-
-        # columns
-
-        foreach my $column ( $source->columns ) {
-            my $column_info = $source->column_info($column);
-            my $versioned   = $column_info->{versioned};
-            my $renamed =
-              $versioned->{renamed_from} || $column_info->{renamed_from};
-            if ($renamed) {
-                my $since =
-                  $versioned->{since} || $column_info->{since} || $table_since;
-                if ( $since eq $target_version ) {
-                    my $field = $table->get_field($column);
-                    $field->extra( renamed_from => $renamed );
-                }
-            }
-        }
-    }
-
-    # now we create the diff which we need as array so we can process one
-    # line at a time
-
-    my @diff = SQL::Translator::Diff->new(
-        {
-            output_db               => $sqlt_type,
-            source_schema           => $curr_sqlt->schema,
-            target_schema           => $target_sqlt->schema,
-            ignore_index_names      => 1,
-            ignore_constraint_names => 1,
-        }
-    )->compute_differences->produce_diff_sql;
-
-    my $exception;
-    try {
-        $self->txn_do(
-            sub {
-
-                # Upgrade.pm before
-
-                foreach my $sub (@before_upgrade_subs) {
-                    $sub->($self)
-                      or die "Failed upgrade before $target_version sub";
-                }
-
-                # execute SQL one line at a time
-
-                foreach my $line (@diff) {
-
-                    # drop comments and BEGIN/COMMIT
-                    next if $line =~ /(^--|BEGIN|COMMIT)/;
-
-                    $self->storage->dbh_do(
-                        sub {
-                            my ( $storage, $dbh ) = @_;
-                            if ( $sqlt_type eq 'SQLite' ) {
-
-                                # FIXME: SQLite barfs on FK constraints
-                                # during temp table copy
-                                if ( $line =~ /CREATE TEMPORARY TABLE/ ) {
-                                    $line =~ s/,\n\s*FOREIGN KEY.+?\n/\n/;
-                                }
-                            }
-                            $dbh->do($line);
-                        }
-                    );
-                }
-
-                # Upgrade.pm after
-
-                unless ( $sqlt_type =~ /^(PostgreSQL|SQLite)$/ ) {
-
-                    # FIXME: sadly we can't do this as part of this transaction
-                    # in Pg & SQLite - reason still to be determined
-
-                    foreach my $sub (@after_upgrade_subs) {
-                        $sub->($target_schema)
-                          or die "Failed upgrade after $target_version sub";
-                    }
-                }
-            }
-        );
-
-        $self->txn_do(
-            sub {
-                if ( $sqlt_type =~ /^(PostgreSQL|SQLite)$/ ) {
-
-                    # FIXME: see comments within transaction above
-                    # perform the 'after' steps we were forced to skip earlier
-
-                    foreach my $sub (@after_upgrade_subs) {
-                        $sub->($target_schema)
-                          or die "Failed upgrade after $target_version sub";
-                    }
-                }
-            }
-        );
-    }
-    catch {
-        $exception = $_;
-    };
-
-    if ( defined $exception ) {
-        $self->throw_exception($exception);
-    }
-    else {
-
-        # set row in dbix_class_schema_versions table
-        $self->_set_db_version( { version => $target_version } );
-    }
-}
-
 =head2 versioned_schema
 
 =over 4
@@ -654,192 +822,6 @@ sub upgrade_single_step {
 
 Parse schema and remove classes, columns and relationships that are
 not valid for the requested version.
-
-=cut
-
-sub versioned_schema {
-    my ( $self, $_version ) = @_;
-
-    my $pversion = version->parse($_version);
-
-    my $schema_first_version = $self->schema_first_version;
-
-    foreach my $source_name ( $self->sources ) {
-
-        my $source = $self->source($source_name);
-
-        unless ( defined $schema_first_version ) {
-
-            # $FIRST_VERSION not defined for schema so we check resultset since
-            my $versioned = $source->resultset_attributes->{versioned};
-            if ( !defined $versioned || !defined $versioned->{since} ) {
-                $self->throw_exception("\$FIRST_VERSION not defined for schema and 'since' not defined for '$source_name' - you must use one of them");
-            }
-        }
-
-        # check columns before deciding on class-level since/until to make sure
-        # we don't miss any versions
-
-        foreach my $column ( $source->columns ) {
-
-            my $column_info = $source->column_info($column);
-            my $versioned   = $column_info->{versioned};
-
-            my ( $changes, $renamed, $since, $until );
-            if ($versioned) {
-                $changes = $versioned->{changes};
-                $renamed = $versioned->{renamed_from};
-                $since   = $versioned->{since};
-                $until   = $versioned->{until};
-                $until   = $versioned->{till} if defined $versioned->{till};
-            }
-            else {
-                $changes = $column_info->{changes};
-                $renamed = $column_info->{renamed_from};
-                $since   = $column_info->{since};
-                $until   = $column_info->{until};
-                $until   = $column_info->{till} if defined $column_info->{till};
-            }
-
-            # handle since/until first
-
-            my $name = "$source_name column $column";
-            my $sub  = sub {
-                my $source = shift;
-                $source->remove_column($column);
-            };
-            $self->_since_until( $pversion, $since, $until, $name, $sub,
-                $source );
-
-            # handled renamed column
-
-            if ($renamed) {
-                unless ($since) {
-
-                    # catch sitation where class has since but renamed_from
-                    # on column does not (renamed PK columns for example)
-
-                    my $rsa_ver = $source->resultset_attributes->{versioned};
-                    $since = $rsa_ver->{since} if $rsa_ver->{since};
-                }
-            }
-
-            # handle changes
-
-            if ($changes) {
-                $self->throw_exception("changes not a hasref in $name")
-                  unless ref($changes) eq 'HASH';
-
-                foreach my $change_version ( sort _byversion keys %$changes ) {
-
-                    $self->throw_exception(
-                        "Bad changes version number $change_version in $name")
-                      unless version::is_lax($change_version);
-
-                    my $change_value = $changes->{$change_version};
-
-                    $self->throw_exception(
-                        "not a hasref in $name changes $change_version")
-                      unless ref($change_value) eq 'HASH';
-
-                    # stash the version
-                    push @schema_versions, $change_version;
-
-                    if ( $pversion >= version->parse($change_version) ) {
-                        unless ( $source->remove_column($column)
-                            && $source->add_column( $column => $change_value ) )
-                        {
-                            $self->throw_exception(
-                                "Failed change $change_version for $name");
-                        }
-                    }
-                }
-            }
-        }
-
-        # check relations
-
-        foreach my $relation_name ( $source->relationships ) {
-
-            my $attrs = $source->relationship_info($relation_name)->{attrs};
-
-            next unless defined $attrs;
-
-            my $versioned = $attrs->{versioned};
-
-            # TODO: changes/renamed_from for relations?
-            my ( $since, $until );
-            if ($versioned) {
-                $since = $versioned->{since};
-                $until = $versioned->{until};
-                $until = $versioned->{till} if defined $versioned->{till};
-            }
-            else {
-                $since = $attrs->{since};
-                $until = $attrs->{until};
-                $until = $attrs->{till} if defined $attrs->{till};
-            }
-
-            my $name = "$source_name relationship $relation_name";
-            my $sub  = sub {
-                my $source = shift;
-                my %rels   = %{ $source->_relationships };
-                delete $rels{$relation_name};
-                $source->_relationships( \%rels );
-            };
-            $self->_since_until( $pversion, $since, $until, $name, $sub,
-                $source );
-        }
-
-        # check class-level since/until
-
-        my ( $since, $until );
-
-        my $versioned = $source->resultset_attributes->{versioned};
-
-        if ( defined $versioned ) {
-            $since = $versioned->{since} if defined $versioned->{since};
-            $until = $versioned->{until} if defined $versioned->{until};
-        }
-
-        my $name = $source_name;
-        my $sub  = sub {
-            my $class = shift;
-            $class->unregister_source($source_name);
-        };
-        $self->_since_until( $pversion, $since, $until, $name, $sub, $self );
-    }
-}
-
-sub _since_until {
-    my ( $self, $pversion, $since, $until, $name, $sub, $thing ) = @_;
-
-    if ($since) {
-        $self->throw_exception("Bad since $since for $name")
-          unless version::is_lax($since);
-        push @schema_versions, $since;
-    }
-    if ($until) {
-        $self->throw_exception("Bad till/until $until for $name")
-          unless version::is_lax($until);
-        push @schema_versions, $until;
-    }
-
-    if (   $since
-        && $until
-        && ( version->parse($since) > version->parse($until) ) )
-    {
-        $self->throw_exception("$name has since greater than until");
-    }
-
-    # until is absolute so parse before since
-    if ( $until && $pversion >= version->parse($until) ) {
-        $sub->($thing);
-    }
-    if ( $since && $pversion < version->parse($since) ) {
-        $sub->($thing);
-    }
-}
 
 =head1 CANDY
 
@@ -930,7 +912,3 @@ it under the terms of either: the GNU General Public License as
 published by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
-
-=cut
-
-1;
