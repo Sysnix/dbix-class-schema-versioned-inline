@@ -9,12 +9,12 @@ DBIx::Class::Schema::Versioned::Inline - Defined multiple schema versions within
 =cut
 
 BEGIN {
-    $DBIx::Class::Schema::Versioned::Inline::VERSION = '0.101';
+    $DBIx::Class::Schema::Versioned::Inline::VERSION = '0.200';
 }
 
 =head1 VERSION
 
-Version 0.101
+Version 0.200
 
 =cut
 
@@ -192,7 +192,7 @@ sub upgrade_single_step {
 
         if (   $versioned
             && $renamed_from
-            && $table_since eq $target_version )
+            && to_PerlVersion($table_since) eq $target_version )
         {
             if ( grep { $_ eq $renamed_from } $self->sources ) {
 
@@ -213,7 +213,7 @@ sub upgrade_single_step {
             if ($renamed) {
                 my $since =
                   $versioned->{since} || $column_info->{since} || $table_since;
-                if ( $since eq $target_version ) {
+                if ( to_PerlVersion($since) eq $target_version ) {
                     my $field = $table->get_field($column);
                     $field->extra( renamed_from => $renamed );
                 }
@@ -309,7 +309,7 @@ sub upgrade_single_step {
     else {
 
         # set row in dbix_class_schema_versions table
-        $self->_set_db_version( { version => $target_version } );
+        $self->_set_db_version( { version => "$target_version" } );
     }
 }
 
@@ -320,6 +320,7 @@ sub versioned_schema {
 
     my $schema_first_version = $self->schema_first_version;
     $self->add_version($schema_first_version) if defined $schema_first_version;
+    $self->add_version($self->schema_version);
 
     foreach my $source_name ( $self->sources ) {
 
@@ -503,6 +504,9 @@ sub _since_until {
 
 Schema versioning for DBIx::Class with version information embedded
 inline in the schema definition.
+
+See L</VERSION NUMBERS> below for important information regarding schema
+version numbering.
 
 =head1 SYNOPSIS
 
@@ -771,6 +775,37 @@ until the first change is effected.
 
 For details on how to apply data modifications that might be required
 during an upgrade see L<DBIx::Class::Schema::Versioned::Inline::Upgrade>.
+
+=head1 VERSION NUMBERS
+
+Under the hood all version numbers are handled using L<Perl::Version> which
+can lead to confusion if you do not understand how Perl versions are
+manipulated. For example:
+
+  $a = Perl::Version->new(0.4)
+  $b = Perl::Version->new(0.3)
+  $a > $b                           # TRUE
+
+But things can start to look very odd as soon as we use different numbers of
+decimal places:
+
+
+  $a = Perl::Version->new(0.12)
+  $b = Perl::Version->new(0.30)
+  $a > $b                           # TRUE
+
+And just to add to potential confusion:
+
+  $a = Perl::Version->new(0.12)
+  $b = Perl::Version->new("0.30")
+  $a > $b                           # FALSE
+
+The motto of this story is that you must be careful how you manage your
+versions. Please read L<Perl::Version> pod carefully and make sure you
+understand how it operates. To avoid unexpected behaviour it is recommended
+that you B<always> quote the version and if possible use a dotted-decimal
+with at least three components or use simple cardinal numbers which can
+never be confused.
 
 =head1 ATTRIBUTES
 
