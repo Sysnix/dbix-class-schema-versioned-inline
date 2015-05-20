@@ -9,9 +9,11 @@ sub BUILD {
     my $self = shift;
 
     foreach my $module (qw/DateTime::Format::Pg DBD::Pg Test::PostgreSQL/) {
-        diag "try_load_class $module";
         try_load_class($module) or plan skip_all => "$module required";
     }
+
+    eval { $self->database }
+      or plan skip_all => "Init database failed: $@";
 }
 
 sub _build_database {
@@ -21,7 +23,7 @@ sub _build_database {
         initdb_args
           => $Test::PostgreSQL::Defaults{initdb_args}
              . ' --encoding=utf8 --no-locale'
-    ) or plan skip_all => $Test::PostgreSQL::errstr;
+    ) or die $Test::PostgreSQL::errstr;
     return $pgsql;
 }
 

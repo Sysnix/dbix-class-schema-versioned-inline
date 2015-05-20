@@ -11,6 +11,9 @@ sub BUILD {
     foreach my $module (qw/DateTime::Format::MySQL DBD::mysql Test::mysqld/) {
         try_load_class($module) or plan skip_all => "$module required";
     }
+
+    eval { $self->database }
+      or plan skip_all => "Init database failed: $@";
 }
 
 sub _build_database {
@@ -22,7 +25,7 @@ sub _build_database {
             'collation-server'     => 'utf8_unicode_ci',
             'skip-networking'      => '',
         }
-    ) or plan skip_all => $Test::mysqld::errstr;
+    ) or die $Test::mysqld::errstr;
     return $mysqld;
 }
 
