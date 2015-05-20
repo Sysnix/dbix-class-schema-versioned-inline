@@ -1,5 +1,11 @@
 Revision history for DBIx::Class::Schema::Versioned::Inline
 
+0.201 Wed May 20 12:26:48 CEST 2015
+
+    [TESTS]
+
+    * Improve robustness of MySQL and PostgreSQL smoker tests
+
 0.200 Tue May 19 10:14:04 CEST 2015
 
     [ENHANCEMENTS]
