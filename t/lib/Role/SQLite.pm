@@ -2,6 +2,7 @@ package Role::SQLite;
 
 use Class::Load qw(try_load_class);
 use File::Spec;
+use File::Temp qw(tempfile);;
 
 use Test::Roo::Role;
 with 'Role::Database';
@@ -10,14 +11,21 @@ sub BUILD {
     try_load_class("DBD::SQLite") or plan skip_all => "DBD::SQLite required";
 }
 
-my ($dbfile) = File::Spec->catfile( File::Spec->tmpdir, "dcsvi_test_$$" );
+my ( $fh, $dbfile ) = tempfile(
+    TEMPLATE => 'upgrade_test_XXXXX',
+    EXLOCK   => 0,
+    TMPDIR   => File::Spec->tmpdir
+);
 
 before clear_database => sub {
-    my $database = shift->database;
-    $database->disconnect if $database;
-};
-after clear_database => sub {
-    unlink($dbfile) if -f $dbfile;
+    unlink($dbfile)
+      # can't unlink under Windows so on failure grab new tmpfile
+      # all our tempfiles will disappear when test exits
+      or ( $fh, $dbfile ) = tempfile(
+        TEMPLATE => 'upgrade_test_XXXXX',
+        EXLOCK   => 0,
+        TMPDIR   => File::Spec->tmpdir
+      );
 };
 after teardown => sub {
     shift->clear_database;
