@@ -1,21 +1,23 @@
 NAME
-    DBIx::Class::Schema::Versioned::Inline
+    DBIx::Class::Schema::Versioned::Inline - Defined multiple schema
+    versions within resultset classes
+
+VERSION
+    Version 0.202
 
 SUMMARY
     Schema versioning for DBIx::Class with version information embedded
     inline in the schema definition.
 
-WARNING
-    This is BETA software so the usual caveats apply. This software might
-    drown your kittens and perform other unusual or unexpected beahaviour.
-
-VERSION
-    Version 0.025
+    See "VERSION NUMBERS" below for important information regarding schema
+    version numbering.
 
 SYNOPSIS
      package MyApp::Schema;
 
-     use base 'DBIx::Class::Schema::Versioned::Inline';
+     use parent 'DBIx::Class::Schema';
+
+     __PACKAGE__->load_components('Schema::Versioned::Inline');
 
      our $FIRST_VERSION = '0.001';
      our $VERSION = '0.002';
@@ -268,9 +270,50 @@ DESCRIPTION
     For details on how to apply data modifications that might be required
     during an upgrade see DBIx::Class::Schema::Versioned::Inline::Upgrade.
 
+VERSION NUMBERS
+    Under the hood all version numbers are handled using Perl::Version which
+    can lead to confusion if you do not understand how Perl versions are
+    manipulated. For example:
+
+      $a = Perl::Version->new(0.4)
+      $b = Perl::Version->new(0.3)
+      $a > $b                           # TRUE
+
+    But things can start to look very odd as soon as we use different
+    numbers of decimal places:
+
+      $a = Perl::Version->new(0.12)
+      $b = Perl::Version->new(0.30)
+      $a > $b                           # TRUE
+
+    And just to add to potential confusion:
+
+      $a = Perl::Version->new(0.12)
+      $b = Perl::Version->new("0.30")
+      $a > $b                           # FALSE
+
+    The motto of this story is that you must be careful how you manage your
+    versions. Please read Perl::Version pod carefully and make sure you
+    understand how it operates. To avoid unexpected behaviour it is
+    recommended that you always quote the version and if possible use a
+    dotted-decimal with at least three components or use simple cardinal
+    numbers which can never be confused.
+
+ATTRIBUTES
+  schema_versions
+    A Set::Equivalence set of PerVersion objects containing all of the
+    available schema versions.
+
+    Versions should be added using "add_version".
+
 METHODS
     Many methods are inherited or overloaded from
     DBIx::Class::Schema::Versioned.
+
+  add_version( $version [, $v2, ... ] )
+    Adds one or more versions to "schema_versions" set. Arguments can either
+    be PerlVersion objects or simple scalars which will be coerced into
+    such.
 
   connection
     Overloaded method. This checks the DBIC schema version against the DB
@@ -281,9 +324,25 @@ METHODS
     Inherited method. Same as "deploy" in DBIx::Class::Schema but also calls
     "install".
 
+  downgrade
+    Call this to attempt to downgrade your database from the version it is
+    at to the version this DBIC schema is at. If they are the same it does
+    nothing.
+
+  downgrade_single_step
   install
     Inherited method. Call this to initialise a previously unversioned
     database.
+
+  get_db_version
+    Override "get_db_version" in DBIx::Class::Schema::Versioned to return
+    the version as a PerlVersion object.
+
+  ordered_schema_versions
+      $self->ordered_schema_version('desc');
+
+    Optional argument defines the order (ascending or descending). With no
+    arg (or an arg we cannot determine direction from) results in ascending.
 
   schema_first_version
     Returns the current schema class' $FIRST_VERSION in a normalised way.
@@ -291,10 +350,13 @@ METHODS
     If the schema does not define $FIRST_VERSION then all resultsets must
     specify the version at which they were added using "since".
 
-  ordered_schema_versions
-    Overloaded method. Returns an ordered list of schema versions. This is
-    then used to produce a set of steps to upgrade through to achieve the
-    required schema version.
+  schema_version
+    Override "schema_version" in DBIx::Class::Schema to return the version
+    as a PerlVersion object.
+
+  stringified_ordered_schema_versions
+    Calls "ordered_schema_versions" with the same args and converts the
+    returned list elements to stringified versions.
 
   upgrade
     Inherited method. Call this to attempt to upgrade your database from the
@@ -350,8 +412,7 @@ BUGS
     Please report any bugs or feature requests via the project's GitHub
     issue tracker:
 
-    <https://github.com/Sysnix/dbix-class-schema-versioned-jiftyesque/issues
-    >
+    <https://github.com/Sysnix/dbix-class-schema-versioned-inline/issues>
 
     I will be notified, and then you'll automatically be notified of
     progress on your bug as I make changes.

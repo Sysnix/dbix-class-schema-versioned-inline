@@ -7,5 +7,6 @@
 .gitignore
 .travis.yml
 lib/Interchange6/Schema/Result/t
-README.pod
+README.md
 sql
+bin/*

@@ -1,0 +1,2 @@
+perl -MPod::Markdown::Github -e "Pod::Markdown::Github->filter('lib/DBIx/Class/Schema/Versioned/Inline.pm')" > README.md
+perldoc -t lib/DBIx/Class/Schema/Versioned/Inline.pm > README
