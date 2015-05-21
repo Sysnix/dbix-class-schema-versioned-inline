@@ -1,7 +1,7 @@
 package Role::SQLite;
 
 use Class::Load qw(try_load_class);
-use File::Temp;
+use File::Spec;
 
 use Test::Roo::Role;
 with 'Role::Database';
@@ -10,17 +10,18 @@ sub BUILD {
     try_load_class("DBD::SQLite") or plan skip_all => "DBD::SQLite required";
 }
 
-my $fh = File::Temp->new( TEMPLATE => 'upgrade_test_XXXXX', EXLOCK => 0 );
-my $dbfile = $fh->filename;
+my ($dbfile) = File::Spec->catfile( File::Spec->tmpdir, "dcsvi_test_$$" );
 
+before clear_database => sub {
+    my $database = shift->database;
+    $database->disconnect if $database;
+};
+after clear_database => sub {
+    unlink($dbfile) if -f $dbfile;
+};
 after teardown => sub {
     shift->clear_database;
 };
-
-sub clear_database {
-    close($fh);
-    unlink($dbfile) or diag "Could not unlink $dbfile: $!";
-}
 
 sub _build_database {
 
@@ -35,7 +36,9 @@ sub _build_dbd_version {
 sub connect_info {
     my $self = shift;
 
-    return ( "dbi:SQLite:dbname=$dbfile", undef, undef,
+    return (
+        "dbi:SQLite:dbname=$dbfile",
+        undef, undef,
         {
             sqlite_unicode  => 1,
             on_connect_call => 'use_foreign_keys',
