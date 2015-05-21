@@ -9,32 +9,35 @@ use Test::Exception;
 use version 0.77;
 
 my @column_noise = (qw(till until since changes renamed_from versioned));
-my @relation_noise = (@column_noise, qw(is_depends_on));
+my @relation_noise = ( @column_noise, qw(is_depends_on) );
 
 sub cmp_table {
     my ( $class, $columns, $relations ) = @_;
     my $name = $class->source_name;
 
-    cmp_deeply( [$class->columns], bag(keys %$columns), "$name columns" );
+    cmp_deeply( [ $class->columns ], bag( keys %$columns ), "$name columns" );
 
     foreach my $column ( $class->columns ) {
-        my %got = %{$class->column_info($column)};
-        foreach my $i ( @column_noise ) {
+        my %got = %{ $class->column_info($column) };
+        foreach my $i (@column_noise) {
             delete $got{$i};
         }
-        cmp_deeply( \%got, $columns->{$column}, "$name column $column");
+        cmp_deeply( \%got, $columns->{$column}, "$name column $column" );
     }
 
-    if ( $relations ) {
-        cmp_deeply( [$class->relationships], bag(keys %$relations),
-            "$name relations" );
+    if ($relations) {
+        cmp_deeply(
+            [ $class->relationships ],
+            bag( keys %$relations ),
+            "$name relations"
+        );
 
         foreach my $rel ( $class->relationships ) {
-            my %got = %{$class->relationship_info($rel)};
-            foreach my $i ( @relation_noise ) {
+            my %got = %{ $class->relationship_info($rel) };
+            foreach my $i (@relation_noise) {
                 delete $got{attrs}->{$i};
             }
-            cmp_deeply( \%got, $relations->{$rel}, "$name relation $rel");
+            cmp_deeply( \%got, $relations->{$rel}, "$name relation $rel" );
         }
     }
 }
@@ -43,8 +46,9 @@ test 'deploy v0.001' => sub {
     my $self = shift;
 
     {
+
         # Pg can be noisy on stop if we stop it too soon after starting
-        local $SIG{__WARN__} = sub {};
+        local $SIG{__WARN__} = sub { };
         $self->clear_database;
     }
 
@@ -53,7 +57,10 @@ test 'deploy v0.001' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.001' };
 
-    my $schema = $self->schema_class->connect( $self->connect_info );
+    my $schema;
+    lives_ok(
+        sub { $schema = $self->schema_class->connect( $self->connect_info ) },
+        "Connect to schema" );
 
     my @versions = ( '0.001', '0.002', '0.003', '0.004', '0.400' );
 
@@ -84,7 +91,7 @@ test 'deploy v0.001' => sub {
             is_nullable => 1,
         }
     };
-    cmp_table( $schema->source('Foo'),  $foo_columns  );
+    cmp_table( $schema->source('Foo'), $foo_columns );
 };
 
 test 'deploy v0.002' => sub {
@@ -210,27 +217,21 @@ test 'deploy v0.003' => sub {
                 cascade_delete => 1,
                 join_type      => "LEFT",
             },
-            class => $self->schema_class . "::Result::Tree",
-            cond  => {
-                "foreign.bars_id" => "self.bars_id"
-            },
+            class  => $self->schema_class . "::Result::Tree",
+            cond   => { "foreign.bars_id" => "self.bars_id" },
             source => $self->schema_class . "::Result::Tree"
         }
     };
     my $tree_relations = {
         bar => {
             attrs => {
-                accessor   => "single",
-                fk_columns => {
-                    bars_id => 1
-                },
+                accessor                  => "single",
+                fk_columns                => { bars_id => 1 },
                 is_foreign_key_constraint => 1,
                 undef_on_null_fk          => 1,
             },
-            class => $self->schema_class . "::Result::Bar",
-            cond  => {
-                "foreign.bars_id" => "self.bars_id"
-            },
+            class  => $self->schema_class . "::Result::Bar",
+            cond   => { "foreign.bars_id" => "self.bars_id" },
             source => $self->schema_class . "::Result::Bar"
         }
     };
@@ -304,27 +305,21 @@ test 'deploy v0.004' => sub {
                 cascade_delete => 1,
                 join_type      => "LEFT",
             },
-            class => $self->schema_class . "::Result::Tree",
-            cond  => {
-                "foreign.bars_id" => "self.bars_id"
-            },
+            class  => $self->schema_class . "::Result::Tree",
+            cond   => { "foreign.bars_id" => "self.bars_id" },
             source => $self->schema_class . "::Result::Tree"
         }
     };
     my $tree_relations = {
         bar => {
             attrs => {
-                accessor   => "single",
-                fk_columns => {
-                    bars_id => 1
-                },
+                accessor                  => "single",
+                fk_columns                => { bars_id => 1 },
                 is_foreign_key_constraint => 1,
                 undef_on_null_fk          => 1,
             },
-            class => $self->schema_class . "::Result::Bar",
-            cond  => {
-                "foreign.bars_id" => "self.bars_id"
-            },
+            class  => $self->schema_class . "::Result::Bar",
+            cond   => { "foreign.bars_id" => "self.bars_id" },
             source => $self->schema_class . "::Result::Bar"
         }
     };
@@ -394,27 +389,21 @@ test 'deploy v0.400' => sub {
                 cascade_delete => 1,
                 join_type      => "LEFT",
             },
-            class => $self->schema_class . "::Result::Tree",
-            cond  => {
-                "foreign.bars_id" => "self.bars_id"
-            },
+            class  => $self->schema_class . "::Result::Tree",
+            cond   => { "foreign.bars_id" => "self.bars_id" },
             source => $self->schema_class . "::Result::Tree"
         }
     };
     my $tree_relations = {
         bar => {
             attrs => {
-                accessor   => "single",
-                fk_columns => {
-                    bars_id => 1
-                },
+                accessor                  => "single",
+                fk_columns                => { bars_id => 1 },
                 is_foreign_key_constraint => 1,
                 undef_on_null_fk          => 1,
             },
-            class => $self->schema_class . "::Result::Bar",
-            cond  => {
-                "foreign.bars_id" => "self.bars_id"
-            },
+            class  => $self->schema_class . "::Result::Bar",
+            cond   => { "foreign.bars_id" => "self.bars_id" },
             source => $self->schema_class . "::Result::Bar"
         }
     };

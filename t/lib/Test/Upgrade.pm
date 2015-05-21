@@ -30,7 +30,10 @@ test 'deploy 0.001' => sub {
     no warnings 'redefine';
     local *DBIx::Class::Schema::schema_version = sub { '0.001' };
 
-    my $schema = $self->schema_class->connect( $self->connect_info );
+    my $schema;
+    lives_ok(
+        sub { $schema = $self->schema_class->connect( $self->connect_info ) },
+        "Connect to schema" );
 
     lives_ok( sub { $schema->deploy }, "deploy schema" );
 
