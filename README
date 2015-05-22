@@ -3,7 +3,7 @@ NAME
     versions within resultset classes
 
 VERSION
-    Version 0.202
+    Version 0.203
 
 SUMMARY
     Schema versioning for DBIx::Class with version information embedded

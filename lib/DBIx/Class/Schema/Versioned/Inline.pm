@@ -9,12 +9,12 @@ DBIx::Class::Schema::Versioned::Inline - Defined multiple schema versions within
 =cut
 
 BEGIN {
-    $DBIx::Class::Schema::Versioned::Inline::VERSION = '0.202';
+    $DBIx::Class::Schema::Versioned::Inline::VERSION = '0.203';
 }
 
 =head1 VERSION
 
-Version 0.202
+Version 0.203
 
 =cut
 
