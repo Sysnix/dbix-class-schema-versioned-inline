@@ -46,7 +46,7 @@ WriteMakefile(
                 'DBIx::Class'        => $MIN_DBIC_VERSION,
                 'Safe::Isa'          => 0,
                 'Set::Equivalence'   => '0.003',
-                'SQL::Translator'    => 0,
+                'SQL::Translator'    => '0.11021',
                 'Try::Tiny'          => '0.18',
                 'Types::PerlVersion' => '0.002',
             }
