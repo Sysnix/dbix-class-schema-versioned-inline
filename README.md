@@ -4,7 +4,7 @@ DBIx::Class::Schema::Versioned::Inline - Defined multiple schema versions within
 
 # VERSION
 
-Version 0.203
+Version 0.204
 
 # SUMMARY
 

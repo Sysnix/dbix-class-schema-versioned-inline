@@ -1,5 +1,10 @@
 Revision history for DBIx::Class::Schema::Versioned::Inline
 
+0.204 Thu May 28 17:15:18 CEST 2015
+
+    * Bump SQL::Translator dep since DBIC optional dep features does not
+      pull in a recent enough version
+
 0.203 Fri May 22 17:46:09 CEST 2015
 
     [TESTS]
